@@ -1,0 +1,104 @@
+# Distri Cosenza — Cómo poner la app en línea
+
+## PASO 1 — Supabase (base de datos)
+
+1. Entrá a https://supabase.com y abrí tu proyecto
+2. Andá a **SQL Editor** → **New Query**
+3. Pegá todo el contenido del archivo `SUPABASE_SETUP.sql` y ejecutalo (Run)
+4. Andá a **Project Settings** → **API**
+5. Copiá:
+   - **Project URL** → la vas a necesitar en el paso 3
+   - **anon public key** → la vas a necesitar en el paso 3
+
+---
+
+## PASO 2 — Subir el código a GitHub
+
+1. Creá un repositorio nuevo en https://github.com (puede ser privado)
+2. Subí todos los archivos de esta carpeta
+   - Si tenés Git instalado:
+     ```
+     git init
+     git add .
+     git commit -m "Distri Cosenza v1"
+     git remote add origin https://github.com/TU_USUARIO/distri-cosenza.git
+     git push -u origin main
+     ```
+   - Si no, usá el botón "Upload files" en GitHub
+
+---
+
+## PASO 3 — Vercel (publicar la app)
+
+1. Entrá a https://vercel.com y hacé login
+2. **New Project** → importá el repositorio de GitHub
+3. En **Environment Variables** agregá estas dos:
+   ```
+   VITE_SUPABASE_URL     = https://TUPROYECTO.supabase.co
+   VITE_SUPABASE_ANON_KEY = eyJhbGci...TU_KEY
+   ```
+4. Framework Preset: **Vite** (lo detecta solo)
+5. **Deploy** — en 2 minutos tenés la URL
+
+---
+
+## PASO 4 — Generar los íconos de la app
+
+Para que los clientes puedan "instalar" la app en el escritorio del celu:
+
+1. Entrá a https://realfavicongenerator.net
+2. Subí una imagen del logo (o cualquier imagen cuadrada)
+3. Descargá y reemplazá `public/icon-192.png` y `public/icon-512.png`
+4. Volvé a hacer deploy en Vercel
+
+---
+
+## PASO 5 — Cómo agregar clientes
+
+Desde el panel admin (usuario: admin / clave: admin123):
+1. Andá a **Clientes** → **+ Nuevo**
+2. Completá nombre, usuario, clave y WhatsApp
+3. Asigná precios por producto en cada categoría
+4. Tocá **Enviar acceso por WhatsApp** — le llega el link y sus credenciales
+
+---
+
+## PASO 6 — Cómo instala el cliente en su celu (Android)
+
+1. El cliente abre el link en **Chrome**
+2. Aparece un cartel abajo: "Agregar Distri Cosenza a pantalla de inicio"
+3. Toca **Agregar**
+4. Listo — queda el ícono en el escritorio como cualquier app
+
+En iPhone (Safari):
+1. Abre el link en Safari
+2. Toca el botón de compartir (cuadrado con flecha)
+3. "Agregar a pantalla de inicio"
+
+---
+
+## Cambiar la contraseña admin
+
+Por ahora la clave admin está en el código (`admin123`).
+Para cambiarla: abrí `src/App.jsx`, buscá `admin123` y cambiala antes de deployar.
+
+---
+
+## Estructura de archivos
+
+```
+distri-cosenza/
+├── src/
+│   ├── App.jsx          ← toda la app
+│   ├── main.jsx         ← punto de entrada
+│   └── supabase.js      ← conexión a la DB
+├── public/
+│   ├── icon-192.png     ← ícono de la app (reemplazar)
+│   └── icon-512.png     ← ícono grande (reemplazar)
+├── index.html
+├── vite.config.js       ← config PWA
+├── package.json
+├── .env.example         ← copiar a .env y completar
+├── SUPABASE_SETUP.sql   ← ejecutar en Supabase
+└── INSTRUCCIONES.md     ← este archivo
+```
