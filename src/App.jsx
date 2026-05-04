@@ -1,29 +1,27 @@
 import React, { useState, useEffect } from 'react'
 import { supabase } from './supabase.js'
 
-const CATS = [
+const DEFAULT_CATS = [
   { id:'trapos',      label:'Trapos',      emoji:'🧺' },
   { id:'rejillas',    label:'Rejillas',    emoji:'🔲' },
   { id:'microfibra',  label:'Microfibra',  emoji:'✨' },
   { id:'repasadores', label:'Repasadores', emoji:'🍽' },
+  { id:'esponjas',    label:'Esponjas',    emoji:'🟩' },
+  { id:'escobas',     label:'Escobas',     emoji:'🧹' },
+  { id:'detergentes', label:'Detergentes', emoji:'🧴' },
+  { id:'plumeros',    label:'Plumeros',    emoji:'🪶' },
 ]
 
 const C = { bg:'#0d0d0d', card:'#181818', border:'#262626', gold:'#c9a96e', green:'#4caf82', red:'#e05c5c', muted:'#555', text:'#f0ede8' }
 const inp = { width:'100%', background:'#222', border:'1px solid #333', borderRadius:10, padding:'13px 15px', color:C.text, fontSize:14, outline:'none', marginBottom:10, boxSizing:'border-box' }
 const btnS = (v) => {
   v=v||'pri'
-  return {
-    padding:v==='sm'?'7px 13px':'13px', borderRadius:v==='sm'?8:10,
-    border:v==='ghost'?'1px solid #333':'none',
-    cursor:'pointer', fontSize:v==='sm'?13:14, fontWeight:600,
-    background:v==='pri'?C.gold:v==='red'?C.red:v==='green'?C.green:v==='ghost'?'transparent':'#252525',
-    color:v==='pri'?'#0d0d0d':C.text,
-    width:(v==='pri'||v==='sec')?'100%':undefined,
-  }
+  return { padding:v==='sm'?'7px 13px':'13px', borderRadius:v==='sm'?8:10, border:v==='ghost'?'1px solid #333':'none', cursor:'pointer', fontSize:v==='sm'?13:14, fontWeight:600, background:v==='pri'?C.gold:v==='red'?C.red:v==='green'?C.green:v==='ghost'?'transparent':'#252525', color:v==='pri'?'#0d0d0d':C.text, width:(v==='pri'||v==='sec')?'100%':undefined }
 }
 const cardS = { background:C.card, border:'1px solid #262626', borderRadius:14, padding:14, marginBottom:8 }
 const hdrS  = { background:'#111', borderBottom:'1px solid #262626', padding:'14px 16px', display:'flex', alignItems:'center', justifyContent:'space-between', position:'sticky', top:0, zIndex:100 }
 const fmt = n => '$' + Number(n).toLocaleString('es-AR')
+const WRAP = { maxWidth:480, margin:'0 auto' }
 
 const Ico = (p) => React.createElement('svg',{width:p.s||18,height:p.s||18,viewBox:'0 0 24 24',fill:'none',stroke:'currentColor',strokeWidth:2,strokeLinecap:'round',strokeLinejoin:'round'},React.createElement('path',{d:p.d}))
 const IBack   = () => React.createElement(Ico,{d:'M19 12H5M12 19l-7-7 7-7'})
@@ -32,6 +30,7 @@ const ICart   = () => React.createElement(Ico,{d:'M6 2L3 6v14a2 2 0 002 2h14a2 2
 const ICheck  = () => React.createElement(Ico,{d:'M20 6L9 17l-5-5'})
 const ILogout = () => React.createElement(Ico,{d:'M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4M16 17l5-5-5-5M21 12H9'})
 const IWsp    = () => React.createElement(Ico,{d:'M21 11.5a8.38 8.38 0 01-.9 3.8 8.5 8.5 0 01-7.6 4.7 8.38 8.38 0 01-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 01-.9-3.8 8.5 8.5 0 014.7-7.6 8.38 8.38 0 013.8-.9h.5a8.48 8.48 0 018 8v.5z'})
+const IChevron = () => React.createElement(Ico,{d:'M9 18l6-6-6-6'})
 
 function Spinner() {
   return React.createElement('div',{style:{minHeight:'100vh',background:C.bg,display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',gap:16}},
@@ -73,31 +72,17 @@ function Login({onLogin}) {
   const [loading,setLoading]=useState(false)
 
   const go = async () => {
-    const username = u.trim()
-    const password = p.trim()
+    const username=u.trim(); const password=p.trim()
     if(!username||!password){setErr('Completa los campos');return}
     setLoading(true); setErr('')
     try {
-      // Admin check — simple string comparison
-      if(username==='admin' && password==='admin123'){
-        const s={role:'admin'}
-        sessionStorage.setItem('dc_session',JSON.stringify(s))
-        onLogin(s)
-        return
+      if(username==='admin'&&password==='admin123'){
+        const s={role:'admin'}; sessionStorage.setItem('dc_session',JSON.stringify(s)); onLogin(s); return
       }
       const {data,error}=await supabase.from('clients').select('*').eq('username',username).eq('password',password)
-      if(error||!data||data.length===0){
-        setErr('Usuario o contrasena incorrectos')
-        setLoading(false)
-        return
-      }
-      const s={role:'client',client:data[0]}
-      sessionStorage.setItem('dc_session',JSON.stringify(s))
-      onLogin(s)
-    } catch(e){
-      setErr('Error de conexion')
-      setLoading(false)
-    }
+      if(error||!data||data.length===0){setErr('Usuario o contrasena incorrectos');setLoading(false);return}
+      const s={role:'client',client:data[0]}; sessionStorage.setItem('dc_session',JSON.stringify(s)); onLogin(s)
+    } catch(e){setErr('Error de conexion');setLoading(false)}
   }
 
   return (
@@ -107,19 +92,9 @@ function Login({onLogin}) {
         <h1 style={{fontSize:28,fontWeight:800,marginBottom:4,color:C.text,lineHeight:1.1}}>Distri</h1>
         <h1 style={{fontSize:28,fontWeight:800,marginBottom:28,color:C.gold,lineHeight:1.1}}>Cosenza</h1>
         {err&&<div style={{padding:'10px 14px',borderRadius:9,background:'rgba(224,92,92,0.13)',color:C.red,fontSize:13,marginBottom:10}}>{err}</div>}
-        <input style={inp} placeholder="Usuario" value={u}
-          onChange={e=>setU(e.target.value)}
-          autoCapitalize="none" autoCorrect="off" autoComplete="off" spellCheck="false"/>
-        <input style={inp} placeholder="Contrasena" type="password" value={p}
-          onChange={e=>setP(e.target.value)}
-          autoComplete="off"/>
-        <button
-          style={btnS()}
-          onMouseDown={e=>e.preventDefault()}
-          onClick={go}
-          disabled={loading}>
-          {loading?'Ingresando...':'Ingresar'}
-        </button>
+        <input style={inp} placeholder="Usuario" value={u} onChange={e=>setU(e.target.value)} autoCapitalize="none" autoCorrect="off" autoComplete="off" spellCheck="false"/>
+        <input style={inp} placeholder="Contrasena" type="password" value={p} onChange={e=>setP(e.target.value)} autoComplete="off"/>
+        <button style={btnS()} onMouseDown={e=>e.preventDefault()} onClick={go} disabled={loading}>{loading?'Ingresando...':'Ingresar'}</button>
       </div>
       <InstallBanner/>
     </div>
@@ -132,6 +107,7 @@ function Admin({onLogout}) {
   const [products,setProducts]=useState([])
   const [clients,setClients]=useState([])
   const [orders,setOrders]=useState([])
+  const [cats,setCats]=useState(DEFAULT_CATS)
   const [loading,setLoading]=useState(true)
 
   useEffect(()=>{
@@ -156,21 +132,67 @@ function Admin({onLogout}) {
         <button onClick={onLogout} style={{background:'none',border:'none',color:C.muted,cursor:'pointer',display:'flex',alignItems:'center',gap:6,fontSize:13}}><ILogout/> Salir</button>
       </div>
       <div style={{display:'flex',background:'#111',borderBottom:'1px solid #262626',padding:'0 12px',overflowX:'auto'}}>
-        {[['products','Productos'],['clients','Clientes'],['orders','Pedidos']].map(([k,l])=>
+        {[['products','Productos'],['cats','Categorias'],['clients','Clientes'],['orders','Pedidos']].map(([k,l])=>
           <button key={k} onClick={()=>setTab(k)} style={{padding:'13px 14px',fontSize:12,fontWeight:600,cursor:'pointer',background:'none',border:'none',color:tab===k?C.gold:C.muted,borderBottom:tab===k?'2px solid '+C.gold:'2px solid transparent',whiteSpace:'nowrap'}}>{l}</button>
         )}
       </div>
       <div style={{padding:14}}>
-        {tab==='products'&&<AdminProducts products={products} setProducts={setProducts}/>}
-        {tab==='clients' &&<AdminClients  clients={clients} setClients={setClients} products={products}/>}
+        {tab==='products'&&<AdminProducts products={products} setProducts={setProducts} cats={cats}/>}
+        {tab==='cats'    &&<AdminCats     cats={cats} setCats={setCats} products={products}/>}
+        {tab==='clients' &&<AdminClients  clients={clients} setClients={setClients} products={products} cats={cats}/>}
         {tab==='orders'  &&<AdminOrders   orders={orders} setOrders={setOrders} clients={clients} products={products}/>}
       </div>
     </div>
   )
 }
 
+// ── ADMIN: CATEGORIAS ─────────────────────────────────────────────────────────
+function AdminCats({cats,setCats,products}) {
+  const [newLabel,setNewLabel]=useState('')
+  const [newEmoji,setNewEmoji]=useState('📦')
+  const add=()=>{
+    if(!newLabel.trim()) return
+    const id=newLabel.trim().toLowerCase().replace(/\s+/g,'-').replace(/[^a-z0-9-]/g,'')
+    if(cats.find(c=>c.id===id)) return
+    setCats(prev=>[...prev,{id,label:newLabel.trim(),emoji:newEmoji}])
+    setNewLabel(''); setNewEmoji('📦')
+  }
+  const del=id=>{
+    if(products.some(p=>p.cat===id)){alert('Tiene productos. Cambialos primero.');return}
+    if(window.confirm('Eliminar categoria?')) setCats(prev=>prev.filter(c=>c.id!==id))
+  }
+  return (
+    <div>
+      <p style={{fontSize:11,color:C.muted,letterSpacing:3,textTransform:'uppercase',marginBottom:14}}>Categorias ({cats.length})</p>
+      <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:8,marginBottom:14}}>
+        {cats.map(cat=>{
+          const count=products.filter(p=>p.cat===cat.id).length
+          return (
+            <div key={cat.id} style={{background:C.card,border:'1px solid #262626',borderRadius:12,padding:12}}>
+              <div style={{display:'flex',justifyContent:'space-between',marginBottom:6}}>
+                <span style={{fontSize:26}}>{cat.emoji}</span>
+                <button style={{background:'rgba(224,92,92,0.1)',border:'none',borderRadius:6,padding:'4px 7px',cursor:'pointer',color:C.red}} onClick={()=>del(cat.id)}><ITrash/></button>
+              </div>
+              <p style={{fontWeight:700,fontSize:13,color:C.text,margin:'0 0 2px'}}>{cat.label}</p>
+              <p style={{fontSize:11,color:C.muted,margin:0}}>{count} prod.</p>
+            </div>
+          )
+        })}
+      </div>
+      <div style={{...cardS,border:'1px dashed #333',background:'#111'}}>
+        <p style={{fontSize:11,color:C.muted,letterSpacing:3,textTransform:'uppercase',marginBottom:10}}>Nueva categoria</p>
+        <div style={{display:'flex',gap:8,marginBottom:10}}>
+          <input style={{...inp,marginBottom:0,flex:'0 0 52px',textAlign:'center',fontSize:20,padding:'8px'}} value={newEmoji} onChange={e=>setNewEmoji(e.target.value)} maxLength={2}/>
+          <input style={{...inp,marginBottom:0,flex:1}} placeholder='Ej: Escobas, Detergentes...' value={newLabel} onChange={e=>setNewLabel(e.target.value)} onKeyDown={e=>e.key==='Enter'&&add()}/>
+        </div>
+        <button style={btnS()} onClick={add}>Agregar categoria</button>
+      </div>
+    </div>
+  )
+}
+
 // ── ADMIN: PRODUCTOS ──────────────────────────────────────────────────────────
-function AdminProducts({products,setProducts}) {
+function AdminProducts({products,setProducts,cats}) {
   const [editing,setEditing]=useState(null)
   const [form,setForm]=useState({})
   const [saving,setSaving]=useState(false)
@@ -180,13 +202,12 @@ function AdminProducts({products,setProducts}) {
     const file=e.target.files[0]; if(!file) return
     const r=new FileReader(); r.onload=ev=>setForm(f=>({...f,[slot]:ev.target.result})); r.readAsDataURL(file)
   }
-  const openNew=()=>{ setForm({name:'',description:'',unit:'docena',qty_per_unit:12,cat:'trapos',photo:null,photo2:null}); setMsg(''); setEditing('new') }
+  const openNew=()=>{ setForm({name:'',description:'',unit:'docena',qty_per_unit:12,cat:cats[0]?.id||'',photo:null,photo2:null}); setMsg(''); setEditing('new') }
   const openEdit=p=>{ setForm({...p}); setMsg(''); setEditing(p.id) }
-
   const save=async()=>{
     if(!form.name?.trim()){setMsg('El nombre es obligatorio');return}
     setSaving(true); setMsg('')
-    const entry={name:form.name.trim(),description:form.description||'',unit:form.unit||'docena',qty_per_unit:Number(form.qty_per_unit)||12,cat:form.cat||'trapos',photo:form.photo||null,photo2:form.photo2||null,active:true}
+    const entry={name:form.name.trim(),description:form.description||'',unit:form.unit||'docena',qty_per_unit:Number(form.qty_per_unit)||12,cat:form.cat||'',photo:form.photo||null,photo2:form.photo2||null,active:true}
     try {
       if(editing==='new'){
         const {data,error}=await supabase.from('products').insert([entry]).select()
@@ -197,11 +218,9 @@ function AdminProducts({products,setProducts}) {
         if(error){setMsg('Error: '+error.message);return}
         if(data&&data[0]) setProducts(prev=>prev.map(p=>p.id===editing?data[0]:p))
       }
-      setMsg('Guardado!')
-      setTimeout(()=>setEditing(null),600)
+      setMsg('Guardado!'); setTimeout(()=>setEditing(null),600)
     } finally {setSaving(false)}
   }
-
   const del=async id=>{
     if(!window.confirm('Eliminar producto?')) return
     await supabase.from('products').delete().eq('id',id)
@@ -217,9 +236,8 @@ function AdminProducts({products,setProducts}) {
           <div key={slot}>
             <p style={{fontSize:11,color:C.muted,marginBottom:4}}>{label}</p>
             <div style={{height:100,background:'#1a1a1a',borderRadius:10,border:'1px dashed #333',display:'flex',alignItems:'center',justifyContent:'center',cursor:'pointer',overflow:'hidden'}} onClick={()=>document.getElementById(id)?.click()}>
-              {form[slot]
-                ?<img src={form[slot]} alt="" style={{width:'100%',height:'100%',objectFit:'contain'}}/>
-                :<div style={{textAlign:'center',color:C.muted,fontSize:11}}><div style={{fontSize:24}}>📷</div><p style={{margin:'4px 0 0'}}>Subir</p></div>}
+              {form[slot]?<img src={form[slot]} alt="" style={{width:'100%',height:'100%',objectFit:'contain'}}/>:
+                <div style={{textAlign:'center',color:C.muted,fontSize:11}}><div style={{fontSize:24}}>📷</div><p style={{margin:'4px 0 0'}}>Subir</p></div>}
               <input id={id} type="file" accept="image/*" style={{display:'none'}} onChange={e=>readImg(e,slot)}/>
             </div>
           </div>
@@ -228,18 +246,13 @@ function AdminProducts({products,setProducts}) {
       <input style={inp} placeholder="Nombre *" value={form.name||''} onChange={e=>setForm(f=>({...f,name:e.target.value}))}/>
       <textarea style={{...inp,minHeight:60,resize:'vertical'}} placeholder="Descripcion" value={form.description||''} onChange={e=>setForm(f=>({...f,description:e.target.value}))}/>
       <p style={{fontSize:11,color:C.muted,marginBottom:4}}>Categoria</p>
-      <select style={inp} value={form.cat||'trapos'} onChange={e=>setForm(f=>({...f,cat:e.target.value}))}>
-        {CATS.map(c=><option key={c.id} value={c.id}>{c.emoji} {c.label}</option>)}
+      <select style={inp} value={form.cat||''} onChange={e=>setForm(f=>({...f,cat:e.target.value}))}>
+        <option value="">-- Elegir --</option>
+        {cats.map(c=><option key={c.id} value={c.id}>{c.emoji} {c.label}</option>)}
       </select>
       <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:8}}>
-        <div>
-          <p style={{fontSize:11,color:C.muted,marginBottom:4}}>Unidad de venta</p>
-          <input style={{...inp,marginBottom:0}} placeholder="docena" value={form.unit||'docena'} onChange={e=>setForm(f=>({...f,unit:e.target.value}))}/>
-        </div>
-        <div>
-          <p style={{fontSize:11,color:C.muted,marginBottom:4}}>Unidades por pack</p>
-          <input style={{...inp,marginBottom:0}} type="number" min="1" value={form.qty_per_unit||12} onChange={e=>setForm(f=>({...f,qty_per_unit:Number(e.target.value)}))}/>
-        </div>
+        <div><p style={{fontSize:11,color:C.muted,marginBottom:4}}>Unidad</p><input style={{...inp,marginBottom:0}} placeholder="docena" value={form.unit||'docena'} onChange={e=>setForm(f=>({...f,unit:e.target.value}))}/></div>
+        <div><p style={{fontSize:11,color:C.muted,marginBottom:4}}>Unidades/pack</p><input style={{...inp,marginBottom:0}} type="number" min="1" value={form.qty_per_unit||12} onChange={e=>setForm(f=>({...f,qty_per_unit:Number(e.target.value)}))}/></div>
       </div>
       {msg&&<div style={{padding:'10px 14px',borderRadius:9,marginTop:12,background:msg.startsWith('Error')?'rgba(224,92,92,0.13)':'rgba(76,175,130,0.13)',color:msg.startsWith('Error')?C.red:C.green,fontSize:13}}>{msg}</div>}
       <div style={{display:'flex',gap:8,marginTop:12}}>
@@ -249,8 +262,8 @@ function AdminProducts({products,setProducts}) {
     </div>
   )
 
-  const grouped=CATS.map(cat=>({cat,items:products.filter(p=>p.cat===cat.id)})).filter(g=>g.items.length>0)
-  const sinCat=products.filter(p=>!CATS.find(c=>c.id===p.cat))
+  const grouped=cats.map(cat=>({cat,items:products.filter(p=>p.cat===cat.id)})).filter(g=>g.items.length>0)
+  const sinCat=products.filter(p=>!cats.find(c=>c.id===p.cat))
   return (
     <div>
       <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:14}}>
@@ -262,8 +275,8 @@ function AdminProducts({products,setProducts}) {
           <p style={{fontSize:11,color:C.muted,letterSpacing:3,textTransform:'uppercase',margin:'0 0 8px'}}>{cat.emoji} {cat.label}</p>
           {items.map(p=>(
             <div key={p.id} style={{...cardS,display:'flex',gap:12,alignItems:'center',padding:12}}>
-              <div style={{width:52,height:52,borderRadius:10,background:'#222',overflow:'hidden',flexShrink:0,display:'flex',alignItems:'center',justifyContent:'center'}}>
-                {p.photo?<img src={p.photo} style={{width:'100%',height:'100%',objectFit:'contain'}}/>:<span style={{fontSize:22}}>{cat.emoji}</span>}
+              <div style={{width:48,height:48,borderRadius:8,background:'#222',overflow:'hidden',flexShrink:0,display:'flex',alignItems:'center',justifyContent:'center'}}>
+                {p.photo?<img src={p.photo} style={{width:'100%',height:'100%',objectFit:'contain'}}/>:<span style={{fontSize:20}}>{cat.emoji}</span>}
               </div>
               <div style={{flex:1,minWidth:0}}>
                 <p style={{fontWeight:600,fontSize:13,color:C.text,margin:0,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{p.name}</p>
@@ -284,7 +297,7 @@ function AdminProducts({products,setProducts}) {
 }
 
 // ── ADMIN: CLIENTES ───────────────────────────────────────────────────────────
-function AdminClients({clients,setClients,products}) {
+function AdminClients({clients,setClients,products,cats}) {
   const [view,setView]=useState('list')
   const [editId,setEditId]=useState(null)
   const [form,setForm]=useState({})
@@ -296,7 +309,6 @@ function AdminClients({clients,setClients,products}) {
   const blankPrices=()=>{ const p={}; products.forEach(pr=>{p[pr.id]={price:'',min_qty:1,bulk_discount:0}}); return p }
   const openNew=()=>{ setForm({name:'',username:'',password:'1234',phone:'',address:''}); setPrices(blankPrices()); setWspSent(false); setMsg(''); setEditId(null); setView('edit') }
   const openEdit=c=>{ setForm({name:c.name,username:c.username,password:c.password,phone:c.phone||'',address:c.address||''}); const p=blankPrices(); if(c.prices) Object.entries(c.prices).forEach(([k,v])=>{p[k]={...p[k],...v}}); setPrices(p); setWspSent(false); setMsg(''); setEditId(c.id); setView('edit') }
-
   const save=async()=>{
     if(!form.name.trim()||!form.username.trim()){setMsg('Nombre y usuario son obligatorios');return}
     setSaving(true); setMsg('')
@@ -311,13 +323,10 @@ function AdminClients({clients,setClients,products}) {
         if(error){setMsg('Error: '+error.message);return}
         if(data&&data[0]) setClients(prev=>prev.map(c=>c.id===editId?data[0]:c))
       }
-      setMsg('Guardado!')
-      setTimeout(()=>setView('list'),600)
+      setMsg('Guardado!'); setTimeout(()=>setView('list'),600)
     } finally {setSaving(false)}
   }
-
   const del=async id=>{ if(!window.confirm('Eliminar cliente?')) return; await supabase.from('clients').delete().eq('id',id); setClients(prev=>prev.filter(c=>c.id!==id)) }
-
   const sendWsp=()=>{
     if(!form.phone) return
     const msg='Hola '+form.name+'! Te mando tu acceso al catalogo de Distri Cosenza\n\nLink: '+window.location.origin+'\nUsuario: '+form.username+'\nClave: '+form.password+'\n\nAndroid: abri en Chrome, toca el menu y "Agregar a pantalla de inicio"\niPhone: abri en Safari, toca Compartir y "Agregar a inicio"'
@@ -326,7 +335,7 @@ function AdminClients({clients,setClients,products}) {
   }
 
   if(view==='edit'){
-    const grouped=CATS.map(cat=>({cat,items:products.filter(p=>p.cat===cat.id)})).filter(g=>g.items.length>0)
+    const grouped=cats.map(cat=>({cat,items:products.filter(p=>p.cat===cat.id)})).filter(g=>g.items.length>0)
     return (
       <div style={{paddingBottom:40}}>
         <button onClick={()=>setView('list')} style={{background:'none',border:'none',color:C.gold,cursor:'pointer',fontSize:13,display:'flex',alignItems:'center',gap:6,marginBottom:14}}><IBack/> Volver</button>
@@ -336,11 +345,7 @@ function AdminClients({clients,setClients,products}) {
         <input style={inp} placeholder="Usuario *" value={form.username} autoCapitalize="none" autoCorrect="off" autoComplete="off" onChange={e=>setForm(f=>({...f,username:e.target.value.toLowerCase().replace(/[^a-z0-9]/g,'')}))}/>
         <input style={inp} placeholder="Contrasena" value={form.password} autoComplete="off" onChange={e=>setForm(f=>({...f,password:e.target.value}))}/>
         <input style={inp} placeholder="WhatsApp (5491165001234)" type="tel" value={form.phone||''} onChange={e=>setForm(f=>({...f,phone:e.target.value}))}/>
-        {form.phone&&(
-          <button onClick={sendWsp} style={{...btnS('green'),marginBottom:14,display:'flex',alignItems:'center',justifyContent:'center',gap:8}}>
-            <IWsp/> {wspSent?'Acceso enviado!':'Enviar acceso por WhatsApp'}
-          </button>
-        )}
+        {form.phone&&<button onClick={sendWsp} style={{...btnS('green'),marginBottom:14,display:'flex',alignItems:'center',justifyContent:'center',gap:8}}><IWsp/> {wspSent?'Acceso enviado!':'Enviar acceso por WhatsApp'}</button>}
         {grouped.length>0&&(
           <div>
             <div style={{height:1,background:'#222',margin:'4px 0 14px'}}/>
@@ -376,7 +381,6 @@ function AdminClients({clients,setClients,products}) {
       </div>
     )
   }
-
   return (
     <div>
       <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:14}}>
@@ -409,16 +413,10 @@ function AdminOrders({orders,setOrders,clients,products}) {
   const getP=id=>products.find(p=>p.id===id)||{name:'?',unit:''}
   const inquiries=orders.filter(o=>o.status==='inquiry')
   const regular=orders.filter(o=>o.status!=='inquiry')
-
-  const resolve=async o=>{
-    await supabase.from('orders').update({status:'resolved'}).eq('id',o.id)
-    setOrders(prev=>prev.map(x=>x.id===o.id?{...x,status:'resolved'}:x))
-  }
+  const resolve=async o=>{ await supabase.from('orders').update({status:'resolved'}).eq('id',o.id); setOrders(prev=>prev.map(x=>x.id===o.id?{...x,status:'resolved'}:x)) }
 
   if(sel){
-    const o=orders.find(x=>x.id===sel)
-    const items=o.items||[]
-    const total=items.reduce((s,i)=>s+(i.price||0)*i.qty,0)
+    const o=orders.find(x=>x.id===sel); const items=o.items||[]; const total=items.reduce((s,i)=>s+(i.price||0)*i.qty,0)
     return (
       <div>
         <button onClick={()=>setSel(null)} style={{background:'none',border:'none',color:C.gold,cursor:'pointer',fontSize:13,display:'flex',alignItems:'center',gap:6,marginBottom:14}}><IBack/> Volver</button>
@@ -431,187 +429,48 @@ function AdminOrders({orders,setOrders,clients,products}) {
           <p style={{fontSize:12,color:C.muted,marginBottom:14}}>{new Date(o.created_at).toLocaleString('es-AR')}</p>
           {items.map((item,i)=>{
             const pr=getP(item.product_id)
-            return (
-              <div key={i} style={{display:'flex',justifyContent:'space-between',padding:'9px 0',borderBottom:'1px solid #262626'}}>
-                <div>
-                  <p style={{fontWeight:600,fontSize:13,color:C.text,margin:0}}>{pr.name}</p>
-                  <p style={{fontSize:11,color:C.muted,margin:'2px 0 0'}}>{item.qty} {pr.unit} {item.price?'x '+fmt(item.price):'· consulta'}</p>
-                </div>
-                {item.price?<p style={{fontWeight:700,color:C.gold,margin:0}}>{fmt(item.price*item.qty)}</p>:<span style={{fontSize:12,color:C.gold,fontWeight:700}}>?</span>}
-              </div>
-            )
+            return <div key={i} style={{display:'flex',justifyContent:'space-between',padding:'9px 0',borderBottom:'1px solid #262626'}}><div><p style={{fontWeight:600,fontSize:13,color:C.text,margin:0}}>{pr.name}</p><p style={{fontSize:11,color:C.muted,margin:'2px 0 0'}}>{item.qty} {pr.unit} {item.price?'x '+fmt(item.price):'· consulta'}</p></div>{item.price?<p style={{fontWeight:700,color:C.gold,margin:0}}>{fmt(item.price*item.qty)}</p>:<span style={{fontSize:12,color:C.gold,fontWeight:700}}>?</span>}</div>
           })}
           {total>0&&<div style={{display:'flex',justifyContent:'space-between',marginTop:14}}><p style={{fontWeight:700,fontSize:15,color:C.text,margin:0}}>Total</p><p style={{fontWeight:700,fontSize:20,color:C.gold,margin:0}}>{fmt(total)}</p></div>}
         </div>
       </div>
     )
   }
-
   return (
     <div>
-      {inquiries.length>0&&(
-        <div style={{marginBottom:20}}>
-          <p style={{fontSize:11,color:C.gold,letterSpacing:3,textTransform:'uppercase',marginBottom:8}}>Consultas ({inquiries.length})</p>
-          {inquiries.map(o=>(
-            <div key={o.id} style={{...cardS,cursor:'pointer',border:'1px solid '+C.gold+'44'}} onClick={()=>setSel(o.id)}>
-              <p style={{fontWeight:700,fontSize:14,color:C.text,margin:'0 0 2px'}}>{getC(o.client_id).name}</p>
-              <p style={{fontSize:11,color:C.muted,margin:0}}>{new Date(o.created_at).toLocaleString('es-AR')}</p>
-            </div>
-          ))}
-        </div>
-      )}
+      {inquiries.length>0&&<div style={{marginBottom:20}}><p style={{fontSize:11,color:C.gold,letterSpacing:3,textTransform:'uppercase',marginBottom:8}}>Consultas ({inquiries.length})</p>{inquiries.map(o=><div key={o.id} style={{...cardS,cursor:'pointer',border:'1px solid '+C.gold+'44'}} onClick={()=>setSel(o.id)}><p style={{fontWeight:700,fontSize:14,color:C.text,margin:'0 0 2px'}}>{getC(o.client_id).name}</p><p style={{fontSize:11,color:C.muted,margin:0}}>{new Date(o.created_at).toLocaleString('es-AR')}</p></div>)}</div>}
       <p style={{fontSize:11,color:C.muted,letterSpacing:3,textTransform:'uppercase',marginBottom:8}}>Pedidos ({regular.length})</p>
       {regular.length===0&&inquiries.length===0&&<p style={{color:C.muted,textAlign:'center',padding:'40px 0',fontSize:14}}>Sin pedidos aun.</p>}
-      {regular.map(o=>{
-        const total=(o.items||[]).reduce((s,i)=>s+(i.price||0)*i.qty,0)
-        return (
-          <div key={o.id} style={{...cardS,cursor:'pointer'}} onClick={()=>setSel(o.id)}>
-            <div style={{display:'flex',justifyContent:'space-between',alignItems:'center'}}>
-              <div><p style={{fontWeight:700,fontSize:14,color:C.text,margin:0}}>{getC(o.client_id).name}</p><p style={{fontSize:11,color:C.muted,margin:'3px 0 0'}}>{new Date(o.created_at).toLocaleString('es-AR')}</p></div>
-              <p style={{fontWeight:700,fontSize:16,color:C.gold,margin:0}}>{fmt(total)}</p>
-            </div>
-          </div>
-        )
-      })}
+      {regular.map(o=>{ const total=(o.items||[]).reduce((s,i)=>s+(i.price||0)*i.qty,0); return <div key={o.id} style={{...cardS,cursor:'pointer'}} onClick={()=>setSel(o.id)}><div style={{display:'flex',justifyContent:'space-between',alignItems:'center'}}><div><p style={{fontWeight:700,fontSize:14,color:C.text,margin:0}}>{getC(o.client_id).name}</p><p style={{fontSize:11,color:C.muted,margin:'3px 0 0'}}>{new Date(o.created_at).toLocaleString('es-AR')}</p></div><p style={{fontWeight:700,fontSize:16,color:C.gold,margin:0}}>{fmt(total)}</p></div></div> })}
     </div>
   )
 }
 
 // ── CLIENT STORE ──────────────────────────────────────────────────────────────
-// Vista tipo MercadoLibre: lista con imagen chica, al tocar abre detalle completo
-
-function ProductDetail({pr, pdata, qty, onAdd, onInquiry, isInquiry, onBack}) {
-  const [imgIdx,setImgIdx]=useState(0)
-  const photos=[pr.photo,pr.photo2].filter(Boolean)
-  const hasPrice=pdata&&pdata.price
-  const qpu=Number(pr.qty_per_unit)||12
-  const price=hasPrice?Number(pdata.price):0
-  const priceUnit=hasPrice?Math.round(price/qpu):0
-  const bulkDiscount=hasPrice?Number(pdata.bulk_discount)||0:0
-  const bulkPrice=bulkDiscount>0?Math.round(price*(1-bulkDiscount/100)):0
-  const catInfo=CATS.find(c=>c.id===pr.cat)||{emoji:'📦',label:''}
-
-  return (
-    <div style={{minHeight:'100vh',background:C.bg,paddingBottom:100}}>
-      <div style={hdrS}>
-        <button onClick={onBack} style={{background:'none',border:'none',color:C.gold,cursor:'pointer',display:'flex',alignItems:'center',gap:6,fontSize:14}}><IBack/> Volver</button>
-        <span style={{fontSize:11,color:C.muted,letterSpacing:3,textTransform:'uppercase'}}>{catInfo.emoji} {catInfo.label}</span>
-        <span/>
-      </div>
-
-      {/* Fotos grandes */}
-      {photos.length>0&&(
-        <div>
-          <div style={{background:'#111',display:'flex',alignItems:'center',justifyContent:'center',height:260,overflow:'hidden'}}>
-            <img src={photos[imgIdx]} alt={pr.name} style={{maxWidth:'100%',maxHeight:'100%',objectFit:'contain'}}/>
-          </div>
-          {photos.length>1&&(
-            <div style={{display:'flex',gap:8,padding:'8px 12px',background:'#111',borderBottom:'1px solid #262626'}}>
-              {photos.map((ph,i)=>(
-                <div key={i} onClick={()=>setImgIdx(i)} style={{width:48,height:48,borderRadius:8,overflow:'hidden',border:'2px solid '+(imgIdx===i?C.gold:'#333'),cursor:'pointer',background:'#222',flexShrink:0}}>
-                  <img src={ph} alt="" style={{width:'100%',height:'100%',objectFit:'contain'}}/>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-      )}
-
-      <div style={{padding:16}}>
-        <h1 style={{fontSize:20,fontWeight:800,color:C.text,margin:'0 0 12px',lineHeight:1.2}}>{pr.name}</h1>
-
-        {hasPrice?(
-          <>
-            <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:8,marginBottom:12}}>
-              <div style={{background:'#222',borderRadius:12,padding:'12px 14px'}}>
-                <p style={{fontSize:11,color:C.muted,margin:'0 0 3px'}}>Por {pr.unit}</p>
-                <p style={{fontSize:22,fontWeight:800,color:C.gold,margin:0,lineHeight:1}}>{fmt(price)}</p>
-              </div>
-              <div style={{background:'#222',borderRadius:12,padding:'12px 14px'}}>
-                <p style={{fontSize:11,color:C.muted,margin:'0 0 3px'}}>Por unidad</p>
-                <p style={{fontSize:22,fontWeight:800,color:C.text,margin:0,lineHeight:1}}>{fmt(priceUnit)}</p>
-              </div>
-            </div>
-
-            <div style={{background:'rgba(201,169,110,0.08)',border:'1px solid rgba(201,169,110,0.2)',borderRadius:10,padding:'8px 14px',marginBottom:12,display:'flex',alignItems:'center',gap:8}}>
-              <span style={{fontSize:16}}>📦</span>
-              <span style={{fontSize:14,fontWeight:700,color:C.gold}}>Min: {Number(pdata.min_qty)||1} {pr.unit} = {(Number(pdata.min_qty)||1)*qpu} unidades</span>
-            </div>
-
-            {bulkPrice>0&&(
-              <div style={{background:'#0d1f15',border:'1px solid rgba(76,175,130,0.2)',borderRadius:10,padding:'8px 14px',marginBottom:12,display:'flex',justifyContent:'space-between',alignItems:'center'}}>
-                <div>
-                  <p style={{fontSize:11,color:C.muted,margin:'0 0 3px'}}>Bulto (10 doc.)</p>
-                  <p style={{fontSize:16,fontWeight:700,color:C.green,margin:0}}>{fmt(bulkPrice)}/doc · {fmt(Math.round(bulkPrice/qpu))}/u</p>
-                </div>
-                <span style={{fontSize:12,color:C.green,fontWeight:700,background:'rgba(76,175,130,0.1)',padding:'3px 10px',borderRadius:20}}>{bulkDiscount}% off</span>
-              </div>
-            )}
-
-            {pr.description&&<p style={{fontSize:13,color:'#777',margin:'0 0 16px',lineHeight:1.6}}>{pr.description}</p>}
-
-            <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginTop:8}}>
-              <div style={{display:'flex',alignItems:'center',background:'#222',borderRadius:12,overflow:'hidden',border:'1px solid #333'}}>
-                <button style={{width:46,height:46,background:'none',border:'none',color:C.text,cursor:'pointer',fontSize:24,lineHeight:1}} onClick={()=>onAdd(-1)}>-</button>
-                <span style={{fontWeight:800,fontSize:18,minWidth:36,textAlign:'center',color:C.text}}>{qty}</span>
-                <button style={{width:46,height:46,background:'none',border:'none',color:C.text,cursor:'pointer',fontSize:24,lineHeight:1}} onClick={()=>onAdd(1)}>+</button>
-              </div>
-              {qty>0&&(
-                <div style={{textAlign:'right'}}>
-                  <p style={{fontWeight:800,color:C.green,fontSize:20,margin:0}}>{fmt(price*qty)}</p>
-                  <p style={{fontSize:11,color:C.muted,margin:'2px 0 0'}}>{qty*qpu} unidades</p>
-                </div>
-              )}
-            </div>
-          </>
-        ):(
-          <div>
-            {pr.description&&<p style={{fontSize:13,color:'#777',margin:'0 0 16px',lineHeight:1.6}}>{pr.description}</p>}
-            <div style={{background:'#111',borderRadius:10,padding:'12px 14px',marginBottom:12}}>
-              <p style={{fontSize:14,color:C.muted,margin:0}}>Precio a consultar</p>
-            </div>
-            <button onClick={onInquiry} style={{...btnS(isInquiry?'green':'ghost'),fontSize:14}}>
-              {isInquiry?'✓ Consulta marcada — se enviara al confirmar':'Consultar precio'}
-            </button>
-          </div>
-        )}
-      </div>
-    </div>
-  )
-}
-
 function Store({session,onLogout}) {
   const client=session.client
   const [products,setProducts]=useState([])
+  const [cats,setCats]=useState(DEFAULT_CATS)
   const [cart,setCart]=useState({})
   const [inquiries,setInquiries]=useState({})
-  const [view,setView]=useState('list') // list | detail | cart | ok
+  const [view,setView]=useState('home') // home | products | detail | cart | ok
+  const [selCat,setSelCat]=useState(null)
   const [selProduct,setSelProduct]=useState(null)
-  const [selCat,setSelCat]=useState('all')
   const [loading,setLoading]=useState(true)
   const [submitting,setSubmitting]=useState(false)
 
   useEffect(()=>{
-    supabase.from('products').select('*').eq('active',true).order('cat')
+    supabase.from('products').select('*').eq('active',true).order('name')
       .then(({data})=>{ if(data) setProducts(data); setLoading(false) })
   },[])
 
   const prices=client.prices||{}
-
   const addToCart=(pid,delta)=>{
-    const pdata=prices[pid]
-    if(!pdata?.price) return
+    const pdata=prices[pid]; if(!pdata?.price) return
     const min=Number(pdata.min_qty)||1
-    setCart(c=>{
-      const cur=c[pid]||0; let next=cur+delta
-      if(next<0) next=0
-      if(next>0&&next<min) next=delta>0?min:0
-      return {...c,[pid]:next}
-    })
+    setCart(c=>{ const cur=c[pid]||0; let next=cur+delta; if(next<0) next=0; if(next>0&&next<min) next=delta>0?min:0; return {...c,[pid]:next} })
   }
-
   const toggleInquiry=pid=>setInquiries(q=>({...q,[pid]:!q[pid]}))
-
   const cartItems=Object.entries(cart).filter(([,q])=>q>0).map(([pid,qty])=>({product_id:Number(pid),qty,price:Number(prices[pid].price)}))
   const inquiryItems=Object.entries(inquiries).filter(([,v])=>v).map(([pid])=>({product_id:Number(pid),qty:1,price:null}))
   const cartTotal=cartItems.reduce((s,i)=>s+i.price*i.qty,0)
@@ -620,42 +479,31 @@ function Store({session,onLogout}) {
 
   const confirm=async(isInquiry)=>{
     setSubmitting(true)
-    const items=isInquiry?inquiryItems:cartItems
-    await supabase.from('orders').insert([{client_id:client.id,items,total:isInquiry?0:cartTotal,status:isInquiry?'inquiry':'pending'}])
+    await supabase.from('orders').insert([{client_id:client.id,items:isInquiry?inquiryItems:cartItems,total:isInquiry?0:cartTotal,status:isInquiry?'inquiry':'pending'}])
     if(isInquiry) setInquiries({}); else setCart({})
     setSubmitting(false); setView('ok')
   }
 
-  const myCats=CATS.filter(cat=>products.some(p=>p.cat===cat.id))
-  const visibleProds=selCat==='all'?products:products.filter(p=>p.cat===selCat)
+  // Categorias que tienen productos
+  const activeCats=cats.filter(cat=>products.some(p=>p.cat===cat.id))
 
   if(loading) return React.createElement(Spinner,null)
 
+  // ── PANTALLA OK ──
   if(view==='ok') return (
-    <div style={{minHeight:'100vh',background:C.bg,display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',padding:32,textAlign:'center'}}>
+    <div style={{...WRAP,minHeight:'100vh',background:C.bg,display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',padding:32,textAlign:'center'}}>
       <div style={{width:70,height:70,borderRadius:'50%',border:'2px solid '+C.green,display:'flex',alignItems:'center',justifyContent:'center',marginBottom:20,color:C.green}}><ICheck/></div>
       <h2 style={{fontSize:24,fontWeight:800,color:C.text,marginBottom:8}}>Enviado!</h2>
       <p style={{color:C.muted,marginBottom:28,fontSize:15}}>Te contactamos a la brevedad.</p>
-      <button style={{...btnS(),maxWidth:280}} onClick={()=>setView('list')}>Volver al catalogo</button>
+      <button style={{...btnS(),maxWidth:280}} onClick={()=>setView('home')}>Volver al inicio</button>
     </div>
   )
 
-  if(view==='detail'&&selProduct) {
-    const pr=selProduct
-    const pdata=prices[pr.id]
-    return React.createElement(ProductDetail,{
-      pr, pdata, qty:cart[pr.id]||0,
-      onAdd:d=>addToCart(pr.id,d),
-      onInquiry:()=>toggleInquiry(pr.id),
-      isInquiry:!!inquiries[pr.id],
-      onBack:()=>setView('list')
-    })
-  }
-
+  // ── CARRITO ──
   if(view==='cart') return (
-    <div style={{minHeight:'100vh',background:C.bg}}>
+    <div style={{...WRAP,minHeight:'100vh',background:C.bg}}>
       <div style={hdrS}>
-        <button onClick={()=>setView('list')} style={{background:'none',border:'none',color:C.gold,cursor:'pointer',display:'flex',alignItems:'center',gap:6,fontSize:14}}><IBack/> Volver</button>
+        <button onClick={()=>setView(selProduct?'detail':'products')} style={{background:'none',border:'none',color:C.gold,cursor:'pointer',display:'flex',alignItems:'center',gap:6,fontSize:14}}><IBack/> Volver</button>
         <p style={{fontSize:13,letterSpacing:3,textTransform:'uppercase',color:C.gold,margin:0,fontWeight:700}}>Mi pedido</p>
         <span/>
       </div>
@@ -664,7 +512,7 @@ function Store({session,onLogout}) {
           const pr=products.find(p=>p.id===item.product_id)
           return (
             <div key={i} style={{...cardS,display:'flex',gap:12,alignItems:'center'}}>
-              <div style={{width:48,height:48,background:'#222',borderRadius:10,overflow:'hidden',flexShrink:0}}>
+              <div style={{width:48,height:48,background:'#222',borderRadius:10,overflow:'hidden',flexShrink:0,display:'flex',alignItems:'center',justifyContent:'center'}}>
                 {pr?.photo&&<img src={pr.photo} style={{width:'100%',height:'100%',objectFit:'contain'}}/>}
               </div>
               <div style={{flex:1,minWidth:0}}>
@@ -685,15 +533,168 @@ function Store({session,onLogout}) {
     </div>
   )
 
-  // ── LISTA PRINCIPAL (estilo ML) ──────────────────────────────────────────
+  // ── DETALLE PRODUCTO ──
+  if(view==='detail'&&selProduct) {
+    const pr=selProduct
+    const pdata=prices[pr.id]
+    const hasPrice=pdata&&pdata.price
+    const qpu=Number(pr.qty_per_unit)||12
+    const price=hasPrice?Number(pdata.price):0
+    const priceUnit=hasPrice?Math.round(price/qpu):0
+    const bulkDiscount=hasPrice?Number(pdata.bulk_discount)||0:0
+    const bulkPrice=bulkDiscount>0?Math.round(price*(1-bulkDiscount/100)):0
+    const qty=cart[pr.id]||0
+    const isInquiry=!!inquiries[pr.id]
+    const catInfo=cats.find(c=>c.id===pr.cat)||{emoji:'📦',label:''}
+    const photos=[pr.photo,pr.photo2].filter(Boolean)
+    const [imgIdx,setImgIdx]=useState(0)
+
+    return (
+      <div style={{...WRAP,minHeight:'100vh',background:C.bg,paddingBottom:100}}>
+        <div style={hdrS}>
+          <button onClick={()=>setView('products')} style={{background:'none',border:'none',color:C.gold,cursor:'pointer',display:'flex',alignItems:'center',gap:6,fontSize:14}}><IBack/> {catInfo.label}</button>
+          <div style={{display:'flex',gap:14,alignItems:'center'}}>
+            <div style={{position:'relative',cursor:'pointer',color:C.muted}} onClick={()=>cartCount>0&&setView('cart')}>
+              <ICart/>
+              {cartCount>0&&<span style={{position:'absolute',top:-5,right:-5,background:C.gold,color:'#0d0d0d',borderRadius:'50%',width:17,height:17,fontSize:10,fontWeight:800,display:'flex',alignItems:'center',justifyContent:'center'}}>{cartCount}</span>}
+            </div>
+          </div>
+        </div>
+        <div style={{background:'#111',padding:12}}>
+          <div style={{borderRadius:12,overflow:'hidden',background:'#1a1a1a',display:'flex',alignItems:'center',justifyContent:'center',height:220}}>
+            {photos.length>0?<img src={photos[imgIdx]} alt={pr.name} style={{maxWidth:'100%',maxHeight:'100%',objectFit:'contain'}}/>:<span style={{fontSize:56}}>{catInfo.emoji}</span>}
+          </div>
+          {photos.length>1&&(
+            <div style={{display:'flex',gap:8,marginTop:8}}>
+              {photos.map((ph,i)=>(
+                <div key={i} onClick={()=>setImgIdx(i)} style={{width:52,height:52,borderRadius:8,overflow:'hidden',border:'2px solid '+(imgIdx===i?C.gold:'#333'),cursor:'pointer',background:'#222',flexShrink:0}}>
+                  <img src={ph} alt="" style={{width:'100%',height:'100%',objectFit:'contain'}}/>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+        <div style={{padding:'14px 16px'}}>
+          <p style={{fontSize:11,color:C.muted,margin:'0 0 4px'}}>{catInfo.emoji} {catInfo.label}</p>
+          <h1 style={{fontSize:20,fontWeight:800,color:C.text,margin:'0 0 14px',lineHeight:1.2}}>{pr.name}</h1>
+          {hasPrice?(
+            <>
+              <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:8,marginBottom:10}}>
+                <div style={{background:'#222',borderRadius:12,padding:'12px 14px'}}>
+                  <p style={{fontSize:11,color:C.muted,margin:'0 0 3px'}}>Por {pr.unit}</p>
+                  <p style={{fontSize:22,fontWeight:800,color:C.gold,margin:0,lineHeight:1}}>{fmt(price)}</p>
+                </div>
+                <div style={{background:'#222',borderRadius:12,padding:'12px 14px'}}>
+                  <p style={{fontSize:11,color:C.muted,margin:'0 0 3px'}}>Por unidad</p>
+                  <p style={{fontSize:22,fontWeight:800,color:C.text,margin:0,lineHeight:1}}>{fmt(priceUnit)}</p>
+                </div>
+              </div>
+              <div style={{background:'rgba(201,169,110,0.08)',border:'1px solid rgba(201,169,110,0.2)',borderRadius:10,padding:'8px 14px',marginBottom:10,display:'flex',alignItems:'center',gap:8}}>
+                <span>📦</span>
+                <span style={{fontSize:14,fontWeight:700,color:C.gold}}>Min: {Number(pdata.min_qty)||1} {pr.unit} = {(Number(pdata.min_qty)||1)*qpu} u</span>
+              </div>
+              {bulkPrice>0&&(
+                <div style={{background:'#0d1f15',border:'1px solid rgba(76,175,130,0.2)',borderRadius:10,padding:'8px 14px',marginBottom:10,display:'flex',justifyContent:'space-between',alignItems:'center'}}>
+                  <div><p style={{fontSize:11,color:C.muted,margin:'0 0 3px'}}>Bulto (10 doc.)</p><p style={{fontSize:16,fontWeight:700,color:C.green,margin:0}}>{fmt(bulkPrice)}/doc · {fmt(Math.round(bulkPrice/qpu))}/u</p></div>
+                  <span style={{fontSize:12,color:C.green,fontWeight:700,background:'rgba(76,175,130,0.1)',padding:'3px 10px',borderRadius:20}}>{bulkDiscount}% off</span>
+                </div>
+              )}
+              {pr.description&&<p style={{fontSize:13,color:'#777',margin:'0 0 14px',lineHeight:1.6}}>{pr.description}</p>}
+              <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginTop:8}}>
+                <div style={{display:'flex',alignItems:'center',background:'#222',borderRadius:12,overflow:'hidden',border:'1px solid #333'}}>
+                  <button style={{width:46,height:46,background:'none',border:'none',color:C.text,cursor:'pointer',fontSize:24,lineHeight:1}} onClick={()=>addToCart(pr.id,-1)}>-</button>
+                  <span style={{fontWeight:800,fontSize:18,minWidth:36,textAlign:'center',color:C.text}}>{qty}</span>
+                  <button style={{width:46,height:46,background:'none',border:'none',color:C.text,cursor:'pointer',fontSize:24,lineHeight:1}} onClick={()=>addToCart(pr.id,1)}>+</button>
+                </div>
+                {qty>0&&<div style={{textAlign:'right'}}><p style={{fontWeight:800,color:C.green,fontSize:20,margin:0}}>{fmt(price*qty)}</p><p style={{fontSize:11,color:C.muted,margin:'2px 0 0'}}>{qty*qpu} unidades</p></div>}
+              </div>
+            </>
+          ):(
+            <div>
+              {pr.description&&<p style={{fontSize:13,color:'#777',margin:'0 0 14px',lineHeight:1.6}}>{pr.description}</p>}
+              <div style={{background:'#111',borderRadius:10,padding:'12px 14px',marginBottom:12}}><p style={{fontSize:14,color:C.muted,margin:0}}>Precio a consultar</p></div>
+              <button onClick={()=>toggleInquiry(pr.id)} style={{...btnS(isInquiry?'green':'ghost'),fontSize:14}}>
+                {isInquiry?'Consulta marcada':'Consultar precio'}
+              </button>
+            </div>
+          )}
+        </div>
+        {(cartCount>0||inquiryCount>0)&&(
+          <div style={{position:'fixed',bottom:0,left:0,right:0,maxWidth:480,margin:'0 auto',padding:'12px 16px',background:'#111',borderTop:'1px solid #262626',display:'flex',flexDirection:'column',gap:8}}>
+            {cartCount>0&&<button style={btnS()} onClick={()=>setView('cart')}>Ver pedido · {fmt(cartTotal)}</button>}
+            {inquiryCount>0&&<button style={{...btnS('ghost'),fontSize:13}} onClick={()=>confirm(true)} disabled={submitting}>Enviar consulta ({inquiryCount} prod.)</button>}
+          </div>
+        )}
+      </div>
+    )
+  }
+
+  // ── LISTA DE PRODUCTOS DE UNA CATEGORIA ──
+  if(view==='products'&&selCat) {
+    const catInfo=cats.find(c=>c.id===selCat)||{emoji:'📦',label:'?'}
+    const catProds=products.filter(p=>p.cat===selCat)
+    return (
+      <div style={{...WRAP,minHeight:'100vh',background:C.bg,paddingBottom:100}}>
+        <div style={hdrS}>
+          <button onClick={()=>setView('home')} style={{background:'none',border:'none',color:C.gold,cursor:'pointer',display:'flex',alignItems:'center',gap:6,fontSize:14}}><IBack/> Productos</button>
+          <p style={{fontSize:13,fontWeight:700,color:C.text,margin:0}}>{catInfo.emoji} {catInfo.label}</p>
+          <div style={{position:'relative',cursor:'pointer',color:C.muted}} onClick={()=>cartCount>0&&setView('cart')}>
+            <ICart/>
+            {cartCount>0&&<span style={{position:'absolute',top:-5,right:-5,background:C.gold,color:'#0d0d0d',borderRadius:'50%',width:17,height:17,fontSize:10,fontWeight:800,display:'flex',alignItems:'center',justifyContent:'center'}}>{cartCount}</span>}
+          </div>
+        </div>
+        <div style={{padding:'8px 12px'}}>
+          {catProds.map(pr=>{
+            const pdata=prices[pr.id]
+            const hasPrice=pdata&&pdata.price
+            const price=hasPrice?Number(pdata.price):0
+            const qpu=Number(pr.qty_per_unit)||12
+            const priceUnit=hasPrice?Math.round(price/qpu):0
+            const qty=cart[pr.id]||0
+            return (
+              <div key={pr.id}
+                style={{background:C.card,border:'1px solid #262626',borderRadius:12,marginBottom:8,display:'flex',gap:0,overflow:'hidden',cursor:'pointer'}}
+                onClick={()=>{ setSelProduct(pr); setView('detail') }}>
+                <div style={{width:88,height:88,background:'#111',flexShrink:0,display:'flex',alignItems:'center',justifyContent:'center'}}>
+                  {pr.photo?<img src={pr.photo} alt={pr.name} style={{width:'100%',height:'100%',objectFit:'contain'}}/>:<span style={{fontSize:30}}>{catInfo.emoji}</span>}
+                </div>
+                <div style={{flex:1,padding:'10px 12px',display:'flex',flexDirection:'column',justifyContent:'center',minWidth:0}}>
+                  <p style={{fontWeight:700,fontSize:14,color:C.text,margin:'0 0 4px',lineHeight:1.2}}>{pr.name}</p>
+                  {hasPrice?(
+                    <div>
+                      <p style={{fontSize:17,fontWeight:800,color:C.gold,margin:0,lineHeight:1}}>{fmt(price)}<span style={{fontSize:11,color:C.muted,fontWeight:400}}> /{pr.unit}</span></p>
+                      <p style={{fontSize:12,color:C.muted,margin:'2px 0 0'}}>{fmt(priceUnit)} por unidad</p>
+                    </div>
+                  ):(
+                    <p style={{fontSize:12,color:C.muted,margin:0,fontStyle:'italic'}}>Precio a consultar</p>
+                  )}
+                  {qty>0&&<p style={{fontSize:12,fontWeight:700,color:C.green,margin:'4px 0 0'}}>{qty} en carrito</p>}
+                </div>
+                <div style={{display:'flex',alignItems:'center',padding:'0 12px',color:C.muted}}><IChevron/></div>
+              </div>
+            )
+          })}
+          {catProds.length===0&&<p style={{color:C.muted,textAlign:'center',padding:'40px 0',fontSize:14}}>Sin productos en esta categoria.</p>}
+        </div>
+        {(cartCount>0||inquiryCount>0)&&(
+          <div style={{position:'fixed',bottom:0,left:0,right:0,maxWidth:480,margin:'0 auto',padding:'12px 16px',background:'#111',borderTop:'1px solid #262626',display:'flex',flexDirection:'column',gap:8}}>
+            {cartCount>0&&<button style={btnS()} onClick={()=>setView('cart')}>Ver pedido · {fmt(cartTotal)}</button>}
+            {inquiryCount>0&&<button style={{...btnS('ghost'),fontSize:13}} onClick={()=>confirm(true)} disabled={submitting}>Enviar consulta ({inquiryCount} prod.)</button>}
+          </div>
+        )}
+      </div>
+    )
+  }
+
+  // ── HOME: PANTALLA DE CATEGORIAS ──
   return (
-    <div style={{minHeight:'100vh',background:C.bg,paddingBottom:100}}>
+    <div style={{...WRAP,minHeight:'100vh',background:C.bg,paddingBottom:80}}>
       <div style={hdrS}>
         <div>
-          <p style={{fontSize:12,letterSpacing:3,textTransform:'uppercase',color:C.gold,margin:0,fontWeight:700}}>Distri Cosenza</p>
+          <p style={{fontSize:13,letterSpacing:3,textTransform:'uppercase',color:C.gold,margin:0,fontWeight:700}}>Distri Cosenza</p>
           <p style={{fontSize:11,color:C.muted,margin:'2px 0 0'}}>{client.name}</p>
         </div>
-        <div style={{display:'flex',gap:16,alignItems:'center'}}>
+        <div style={{display:'flex',gap:14,alignItems:'center'}}>
           <div style={{position:'relative',cursor:'pointer',color:C.muted}} onClick={()=>cartCount>0&&setView('cart')}>
             <ICart/>
             {cartCount>0&&<span style={{position:'absolute',top:-5,right:-5,background:C.gold,color:'#0d0d0d',borderRadius:'50%',width:17,height:17,fontSize:10,fontWeight:800,display:'flex',alignItems:'center',justifyContent:'center'}}>{cartCount}</span>}
@@ -702,73 +703,27 @@ function Store({session,onLogout}) {
         </div>
       </div>
 
-      {/* Filtro categorias */}
-      {myCats.length>1&&(
-        <div style={{display:'flex',gap:6,overflowX:'auto',padding:'10px 12px 8px',borderBottom:'1px solid #262626',background:'#111'}}>
-          <button onClick={()=>setSelCat('all')} style={{padding:'7px 14px',borderRadius:20,border:'none',background:selCat==='all'?C.gold:'#222',color:selCat==='all'?'#0d0d0d':C.muted,cursor:'pointer',fontSize:13,fontWeight:700,whiteSpace:'nowrap',flexShrink:0}}>Todo</button>
-          {myCats.map(cat=><button key={cat.id} onClick={()=>setSelCat(cat.id)} style={{padding:'7px 14px',borderRadius:20,border:'none',background:selCat===cat.id?C.gold:'#222',color:selCat===cat.id?'#0d0d0d':C.muted,cursor:'pointer',fontSize:13,fontWeight:700,whiteSpace:'nowrap',flexShrink:0}}>{cat.emoji} {cat.label}</button>)}
-        </div>
-      )}
-
-      {/* Lista de productos — fila con imagen pequeña */}
-      <div style={{padding:'8px 12px'}}>
-        {visibleProds.map(pr=>{
-          const pdata=prices[pr.id]
-          const hasPrice=pdata&&pdata.price
-          const price=hasPrice?Number(pdata.price):0
-          const qpu=Number(pr.qty_per_unit)||12
-          const priceUnit=hasPrice?Math.round(price/qpu):0
-          const qty=cart[pr.id]||0
-          const catInfo=CATS.find(c=>c.id===pr.cat)||{emoji:'📦'}
-
+      <div style={{padding:'16px 12px'}}>
+        <p style={{fontSize:11,color:C.muted,letterSpacing:3,textTransform:'uppercase',margin:'0 0 14px'}}>Productos</p>
+        {activeCats.map(cat=>{
+          const count=products.filter(p=>p.cat===cat.id).length
           return (
-            <div key={pr.id}
-              style={{background:C.card,border:'1px solid #262626',borderRadius:12,marginBottom:8,display:'flex',gap:0,overflow:'hidden',cursor:'pointer'}}
-              onClick={()=>{ setSelProduct(pr); setView('detail') }}>
-              {/* Imagen cuadrada chica */}
-              <div style={{width:90,height:90,background:'#111',flexShrink:0,display:'flex',alignItems:'center',justifyContent:'center'}}>
-                {pr.photo
-                  ?<img src={pr.photo} alt={pr.name} style={{width:'100%',height:'100%',objectFit:'contain'}}/>
-                  :<span style={{fontSize:28}}>{catInfo.emoji}</span>}
+            <div key={cat.id}
+              onClick={()=>{ setSelCat(cat.id); setView('products') }}
+              style={{background:C.card,border:'1px solid #262626',borderRadius:14,marginBottom:10,display:'flex',alignItems:'center',gap:16,padding:'16px',cursor:'pointer'}}>
+              <div style={{width:52,height:52,borderRadius:12,background:'#222',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>
+                <span style={{fontSize:26}}>{cat.emoji}</span>
               </div>
-              {/* Info */}
-              <div style={{flex:1,padding:'10px 12px',display:'flex',flexDirection:'column',justifyContent:'space-between',minWidth:0}}>
-                <div>
-                  <p style={{fontWeight:700,fontSize:14,color:C.text,margin:'0 0 3px',lineHeight:1.2,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{pr.name}</p>
-                  {hasPrice?(
-                    <div>
-                      <p style={{fontSize:17,fontWeight:800,color:C.gold,margin:'2px 0 0',lineHeight:1}}>{fmt(price)} <span style={{fontSize:11,color:C.muted,fontWeight:400}}>/{pr.unit}</span></p>
-                      <p style={{fontSize:12,color:C.muted,margin:'2px 0 0'}}>{fmt(priceUnit)} por unidad</p>
-                    </div>
-                  ):(
-                    <p style={{fontSize:13,color:C.muted,margin:'4px 0 0',fontStyle:'italic'}}>Precio a consultar</p>
-                  )}
-                </div>
-                {/* Qty inline si ya tiene en carrito */}
-                {qty>0&&(
-                  <div style={{display:'flex',alignItems:'center',gap:6,marginTop:6}} onClick={e=>e.stopPropagation()}>
-                    <div style={{display:'flex',alignItems:'center',background:'#222',borderRadius:8,overflow:'hidden',border:'1px solid #333'}}>
-                      <button style={{width:30,height:30,background:'none',border:'none',color:C.text,cursor:'pointer',fontSize:18,lineHeight:1}} onClick={()=>addToCart(pr.id,-1)}>-</button>
-                      <span style={{fontWeight:800,fontSize:14,minWidth:24,textAlign:'center',color:C.text}}>{qty}</span>
-                      <button style={{width:30,height:30,background:'none',border:'none',color:C.text,cursor:'pointer',fontSize:18,lineHeight:1}} onClick={()=>addToCart(pr.id,1)}>+</button>
-                    </div>
-                    <p style={{fontWeight:700,color:C.green,fontSize:13,margin:0}}>{fmt(price*qty)}</p>
-                  </div>
-                )}
+              <div style={{flex:1}}>
+                <p style={{fontWeight:700,fontSize:16,color:C.text,margin:'0 0 3px'}}>{cat.label}</p>
+                <p style={{fontSize:12,color:C.muted,margin:0}}>{count} producto{count!==1?'s':''}</p>
               </div>
+              <span style={{color:C.muted}}><IChevron/></span>
             </div>
           )
         })}
-        {visibleProds.length===0&&<p style={{color:C.muted,textAlign:'center',padding:'40px 0',fontSize:14}}>Sin productos disponibles.</p>}
+        {activeCats.length===0&&<p style={{color:C.muted,textAlign:'center',padding:'60px 0',fontSize:14}}>El catalogo esta vacio por el momento.</p>}
       </div>
-
-      {/* Footer fijo */}
-      {(cartCount>0||inquiryCount>0)&&(
-        <div style={{position:'fixed',bottom:0,left:0,right:0,padding:'12px 16px',background:'#111',borderTop:'1px solid #262626',display:'flex',flexDirection:'column',gap:8}}>
-          {cartCount>0&&<button style={btnS()} onClick={()=>setView('cart')}>Ver pedido · {fmt(cartTotal)}</button>}
-          {inquiryCount>0&&<button style={{...btnS('ghost'),fontSize:13}} onClick={()=>confirm(true)} disabled={submitting}>Enviar consulta ({inquiryCount} producto{inquiryCount>1?'s':''})</button>}
-        </div>
-      )}
       <InstallBanner/>
     </div>
   )
