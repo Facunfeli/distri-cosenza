@@ -182,7 +182,7 @@ function AdminProducts({products,setProducts}) {
           <div key={slot}>
             <p style={{fontSize:11,color:C.muted,marginBottom:4}}>{label}</p>
             <div style={{height:100,background:'#1a1a1a',borderRadius:10,border:'1px dashed #333',display:'flex',alignItems:'center',justifyContent:'center',cursor:'pointer',overflow:'hidden'}} onClick={()=>document.getElementById(id)?.click()}>
-              {form[slot]?<img src={form[slot]} alt="" style={{width:'100%',height:'100%',objectFit:'cover'}}/>:
+              {form[slot]?<img src={form[slot]} alt="" style={{width:'100%',height:'100%',objectFit:'contain'}}/>:
                 <div style={{textAlign:'center',color:C.muted,fontSize:11}}><div style={{fontSize:24}}>📷</div><p style={{margin:'4px 0 0'}}>Subir</p></div>}
               <input id={id} type="file" accept="image/*" style={{display:'none'}} onChange={e=>readImg(e,slot)}/>
             </div>
@@ -231,7 +231,7 @@ function AdminProducts({products,setProducts}) {
           {items.map(p=>(
             <div key={p.id} style={{...cardS,display:'flex',gap:12,alignItems:'center',padding:12}}>
               <div style={{width:48,height:48,borderRadius:10,background:'#222',overflow:'hidden',flexShrink:0,display:'flex',alignItems:'center',justifyContent:'center'}}>
-                {p.photo?<img src={p.photo} style={{width:'100%',height:'100%',objectFit:'cover'}}/>:<span style={{fontSize:20}}>{cat.emoji}</span>}
+                {p.photo?<img src={p.photo} style={{width:'100%',height:'100%',objectFit:'contain'}}/>:<span style={{fontSize:20}}>{cat.emoji}</span>}
               </div>
               <div style={{flex:1,minWidth:0}}>
                 <p style={{fontWeight:600,fontSize:13,color:C.text,margin:0,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{p.name}</p>
@@ -588,7 +588,7 @@ function Store({session,onLogout}) {
 
           return (
             <div key={pr.id} style={{background:C.card,border:'1px solid '+(isInquiry?C.gold+'66':'#262626'),borderRadius:14,marginBottom:8,overflow:'hidden'}}>
-              {pr.photo&&<img src={pr.photo} alt={pr.name} style={{width:'100%',height:130,objectFit:'cover',display:'block'}}/>}
+              {pr.photo&&<img src={pr.photo} alt={pr.name} style={{width:'100%',height:160,objectFit:'contain',display:'block',background:'#111'}}/>}
               <div style={{padding:12}}>
                 <p style={{fontWeight:700,fontSize:16,color:C.text,margin:'0 0 6px',lineHeight:1.2}}>{catInfo.emoji} {pr.name}</p>
 
