@@ -257,12 +257,12 @@ function AdminProducts({products,setProducts,cats}) {
 function AdminClients({clients,setClients,products,cats}) {
   const [view,setView]=useState('list'); const [editId,setEditId]=useState(null); const [form,setForm]=useState({}); const [prices,setPrices]=useState({}); const [saving,setSaving]=useState(false); const [msg,setMsg]=useState(''); const [wspSent,setWspSent]=useState(false)
   const blankPrices=()=>{ const p={}; products.forEach(pr=>{p[pr.id]={price:'',min_qty:1,bulk_discount:0}}); return p }
-  const openNew=()=>{ setForm({name:'',username:'',password:'1234',phone:'',address:''}); setPrices(blankPrices()); setWspSent(false); setMsg(''); setEditId(null); setView('edit') }
-  const openEdit=c=>{ setForm({name:c.name,username:c.username,password:c.password,phone:c.phone||'',address:c.address||''}); const p=blankPrices(); if(c.prices)Object.entries(c.prices).forEach(([k,v])=>{p[k]={...p[k],...v}}); setPrices(p); setWspSent(false); setMsg(''); setEditId(c.id); setView('edit') }
+  const openNew=()=>{ setForm({name:'',username:'',password:'1234',phone:'',address:'',localidad:''}); setPrices(blankPrices()); setWspSent(false); setMsg(''); setEditId(null); setView('edit') }
+  const openEdit=c=>{ setForm({name:c.name,username:c.username,password:c.password,phone:c.phone||'',address:c.address||'',localidad:c.localidad||''}); const p=blankPrices(); if(c.prices)Object.entries(c.prices).forEach(([k,v])=>{p[k]={...p[k],...v}}); setPrices(p); setWspSent(false); setMsg(''); setEditId(c.id); setView('edit') }
   const save=async()=>{
-    if(!form.name.trim()||!form.username.trim()){setMsg('Nombre y usuario son obligatorios');return}
+    if(!form.name.trim()||!form.username.trim()||!form.localidad?.trim()){setMsg('Nombre, usuario y localidad son obligatorios');return}
     setSaving(true); setMsg('')
-    const entry={name:form.name.trim(),username:form.username.trim().toLowerCase(),password:form.password.trim(),phone:form.phone.replace(/[^0-9]/g,''),address:form.address.trim(),prices}
+    const entry={name:form.name.trim(),username:form.username.trim().toLowerCase(),password:form.password.trim(),phone:form.phone.replace(/[^0-9]/g,''),address:form.address.trim(),localidad:form.localidad?.trim()||'',prices}
     try {
       if(!editId){const {data,error}=await supabase.from('clients').insert([entry]).select();if(error){setMsg('Error: '+error.message);return};if(data&&data[0])setClients(prev=>[...prev,data[0]])}
       else{const {data,error}=await supabase.from('clients').update(entry).eq('id',editId).select();if(error){setMsg('Error: '+error.message);return};if(data&&data[0])setClients(prev=>prev.map(c=>c.id===editId?data[0]:c))}
@@ -284,6 +284,7 @@ function AdminClients({clients,setClients,products,cats}) {
         <div style={cardS}>
           <input style={inp} placeholder="Nombre del local *" value={form.name} onChange={e=>setForm(f=>({...f,name:e.target.value}))}/>
           <input style={inp} placeholder="Direccion" value={form.address||''} onChange={e=>setForm(f=>({...f,address:e.target.value}))}/>
+        <input style={inp} placeholder="Localidad *" value={form.localidad||''} onChange={e=>setForm(f=>({...f,localidad:e.target.value}))}/>
           <input style={inp} placeholder="Usuario *" value={form.username} autoCapitalize="none" autoCorrect="off" autoComplete="off" onChange={e=>setForm(f=>({...f,username:e.target.value.toLowerCase().replace(/[^a-z0-9]/g,'')}))}/>
           <input style={inp} placeholder="Contrasena" value={form.password} autoComplete="off" onChange={e=>setForm(f=>({...f,password:e.target.value}))}/>
           <input style={{...inp,marginBottom:form.phone?10:0}} placeholder="WhatsApp (5491165001234)" type="tel" value={form.phone||''} onChange={e=>setForm(f=>({...f,phone:e.target.value}))}/>
@@ -328,7 +329,7 @@ function AdminClients({clients,setClients,products,cats}) {
       {clients.map(c=>(
         <div key={c.id} style={cardS}>
           <div style={{display:'flex',justifyContent:'space-between',alignItems:'center'}}>
-            <div style={{flex:1,minWidth:0}}><p style={{fontWeight:700,fontSize:15,color:C.text,marginBottom:2}}>{c.name}</p><p style={{fontSize:12,color:C.muted,margin:0}}>@{c.username} · {c.address||'sin direccion'}</p></div>
+            <div style={{flex:1,minWidth:0}}><p style={{fontWeight:700,fontSize:15,color:C.text,marginBottom:2}}>{c.name}</p><p style={{fontSize:12,color:C.muted,margin:0}}>@{c.username} · {c.localidad||c.address||'sin direccion'}</p></div>
             <div style={{display:'flex',gap:6,flexShrink:0,marginLeft:8}}>
               <button style={{padding:'6px 12px',borderRadius:7,border:'1px solid #ddd',cursor:'pointer',fontSize:12,fontWeight:600,background:'#fff'}} onClick={()=>openEdit(c)}>Editar</button>
               <button style={{padding:'6px 10px',borderRadius:7,border:'none',cursor:'pointer',background:'#ffeaea',color:C.red}} onClick={()=>del(c.id)}><ITrash/></button>
@@ -415,10 +416,43 @@ function Store({session,onLogout}) {
   const cartCount=cartItems.length
   const inquiryCount=inquiryItems.length
 
+  const WSP_NUMBERS = ['5491153495156','5491158203286']
+
   const confirm=async(isInquiry)=>{
     setSubmitting(true)
     await supabase.from('orders').insert([{client_id:client.id,items:isInquiry?inquiryItems:cartItems,total:isInquiry?0:cartTotal,status:isInquiry?'inquiry':'pending'}])
-    if(isInquiry) setInquiries({}); else setCart({})
+    if(isInquiry){
+      setInquiries({})
+      // WhatsApp para consulta
+      const msg = 'Hola! Soy la tienda Distri Cosenza. '+client.name+' de '+( client.localidad||'')+'  realizo una consulta de precios desde la web.'
+      window.open('https://wa.me/'+WSP_NUMBERS[0]+'?text='+encodeURIComponent(msg),'_blank')
+    } else {
+      // Armar resumen del pedido
+      const lines = cartItems.map(item=>{
+        const pr = products.find(p=>p.id===item.product_id)
+        return (pr?.name||'Producto')+': '+item.qty+' '+(pr?.unit||'doc')+' x '+fmt(item.price)+' = '+fmt(item.price*item.qty)
+      })
+      const msg = 'Hola! Soy Distri Cosenza.'+
+        '
+
+Cliente: '+client.name+
+        '
+Localidad: '+(client.localidad||'')+
+        '
+
+Nuevo pedido:'+
+        '
+'+lines.join('
+')+
+        '
+
+Total: '+fmt(cartTotal)
+      setCart({})
+      // Abrir WhatsApp al primero, el segundo lo manejamos aparte
+      window.open('https://wa.me/'+WSP_NUMBERS[0]+'?text='+encodeURIComponent(msg),'_blank')
+      // Pequeño delay para abrir el segundo
+      setTimeout(()=>{ window.open('https://wa.me/'+WSP_NUMBERS[1]+'?text='+encodeURIComponent(msg),'_blank') }, 1500)
+    }
     setSubmitting(false); setView('ok')
   }
 
