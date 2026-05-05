@@ -424,7 +424,7 @@ function Store({session,onLogout}) {
     if(isInquiry){
       setInquiries({})
       // WhatsApp para consulta
-      const msg = 'Hola! Soy la tienda Distri Cosenza. '+client.name+' de '+( client.localidad||'')+'  realizo una consulta de precios desde la web.'
+      const msg = `Hola! Soy la tienda Distri Cosenza. ${client.name} de ${client.localidad||''} realizo una consulta de precios desde la web.`
       window.open('https://wa.me/'+WSP_NUMBERS[0]+'?text='+encodeURIComponent(msg),'_blank')
     } else {
       // Armar resumen del pedido
@@ -432,21 +432,15 @@ function Store({session,onLogout}) {
         const pr = products.find(p=>p.id===item.product_id)
         return (pr?.name||'Producto')+': '+item.qty+' '+(pr?.unit||'doc')+' x '+fmt(item.price)+' = '+fmt(item.price*item.qty)
       })
-      const msg = 'Hola! Soy Distri Cosenza.'+
-        '
+      const msg = `Hola! Soy Distri Cosenza.
 
-Cliente: '+client.name+
-        '
-Localidad: '+(client.localidad||'')+
-        '
+Cliente: ${client.name}
+Localidad: ${client.localidad||''}
 
-Nuevo pedido:'+
-        '
-'+lines.join('
-')+
-        '
+Nuevo pedido:
+${lines.join('\n')}
 
-Total: '+fmt(cartTotal)
+Total: ${fmt(cartTotal)}`
       setCart({})
       // Abrir WhatsApp al primero, el segundo lo manejamos aparte
       window.open('https://wa.me/'+WSP_NUMBERS[0]+'?text='+encodeURIComponent(msg),'_blank')
