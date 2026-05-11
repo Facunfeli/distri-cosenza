@@ -133,9 +133,15 @@ function Admin({onLogout}) {
         <button onClick={onLogout} style={{background:'none',border:'none',color:'#aaa',cursor:'pointer',display:'flex',alignItems:'center',gap:6,fontSize:13}}><ILogout/> Salir</button>
       </div>
       <div style={{display:'flex',background:C.white,borderBottom:'1px solid '+C.border,padding:'0 12px',overflowX:'auto'}}>
-        {[['products','Productos'],['cats','Categorias'],['clients','Clientes'],['orders','Pedidos']].map(([k,l])=>
-          <button key={k} onClick={()=>setTab(k)} style={{padding:'13px 14px',fontSize:13,fontWeight:600,cursor:'pointer',background:'none',border:'none',color:tab===k?C.gold:C.muted,borderBottom:tab===k?'2px solid '+C.gold:'2px solid transparent',whiteSpace:'nowrap'}}>{l}</button>
-        )}
+        {[['products','Productos'],['cats','Categorias'],['clients','Clientes'],['orders','Pedidos']].map(([k,l])=>{
+          const badge = k==='orders' ? orders.filter(o=>o.status==='inquiry'||o.status==='pending').length : 0
+          return (
+            <button key={k} onClick={()=>setTab(k)} style={{padding:'13px 14px',fontSize:13,fontWeight:600,cursor:'pointer',background:'none',border:'none',color:tab===k?C.gold:C.muted,borderBottom:tab===k?'2px solid '+C.gold:'2px solid transparent',whiteSpace:'nowrap',position:'relative',display:'inline-flex',alignItems:'center',gap:5}}>
+              {l}
+              {badge>0&&<span style={{background:C.red,color:'#fff',borderRadius:20,minWidth:18,height:18,fontSize:10,fontWeight:700,display:'inline-flex',alignItems:'center',justifyContent:'center',padding:'0 4px'}}>{badge}</span>}
+            </button>
+          )
+        })}
       </div>
       <div style={{padding:14,maxWidth:700,margin:'0 auto'}}>
         {tab==='products'&&<AdminProducts products={products} setProducts={setProducts} cats={cats}/>}
@@ -352,7 +358,10 @@ function AdminOrders({orders,setOrders,clients,products}) {
     const o=orders.find(x=>x.id===sel); const items=o.items||[]; const total=items.reduce((s,i)=>s+(i.price||0)*i.qty,0)
     return (
       <div style={{maxWidth:500}}>
-        <button onClick={()=>setSel(null)} style={{background:'none',border:'none',cursor:'pointer',color:C.gold,fontSize:13,display:'flex',alignItems:'center',gap:6,marginBottom:14}}><IBack/> Volver</button>
+        <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:14}}>
+          <button onClick={()=>setSel(null)} style={{background:'none',border:'none',cursor:'pointer',color:C.gold,fontSize:13,display:'flex',alignItems:'center',gap:6}}><IBack/> Volver</button>
+          <button onClick={async()=>{ if(!window.confirm('Eliminar pedido?')) return; await supabase.from('orders').delete().eq('id',sel); setOrders(prev=>prev.filter(o=>o.id!==sel)); setSel(null) }} style={{background:'#ffeaea',border:'none',borderRadius:8,padding:'6px 12px',cursor:'pointer',color:C.red,fontSize:13,fontWeight:600,display:'flex',alignItems:'center',gap:6}}><ITrash/> Eliminar</button>
+        </div>
         <div style={cardS}>
           <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:8}}>
             <span style={{fontSize:11,color:o.status==='inquiry'?C.gold:C.green,letterSpacing:2,fontWeight:700,background:o.status==='inquiry'?'#fff8ee':'#eaffea',padding:'3px 10px',borderRadius:20,border:'1px solid '+(o.status==='inquiry'?'#f5d98a':'#b2f0c8')}}>{o.status==='inquiry'?'CONSULTA':'PEDIDO'}</span>
@@ -366,20 +375,42 @@ function AdminOrders({orders,setOrders,clients,products}) {
       </div>
     )
   }
+  const delOrder = async id => {
+    if(!window.confirm('Eliminar este pedido?')) return
+    await supabase.from('orders').delete().eq('id', id)
+    setOrders(prev => prev.filter(o => o.id !== id))
+  }
+
   return (
     <div>
       {inquiries.length>0&&(
         <div style={{marginBottom:20}}>
           <p style={{fontSize:11,color:C.gold,letterSpacing:3,textTransform:'uppercase',marginBottom:8}}>Consultas pendientes ({inquiries.length})</p>
-          {inquiries.map(o=><div key={o.id} style={{...cardS,cursor:'pointer',border:'1px solid #f5d98a'}} onClick={()=>setSel(o.id)}>
-            <p style={{fontWeight:700,fontSize:14,color:C.text,margin:'0 0 2px'}}>{getC(o.client_id).name}</p>
-            <p style={{fontSize:11,color:C.muted,margin:0}}>{new Date(o.created_at).toLocaleString('es-AR')}</p>
-          </div>)}
+          {inquiries.map(o=>(
+            <div key={o.id} style={{...cardS,border:'1px solid #f5d98a',display:'flex',justifyContent:'space-between',alignItems:'center'}}>
+              <div style={{flex:1,cursor:'pointer'}} onClick={()=>setSel(o.id)}>
+                <p style={{fontWeight:700,fontSize:14,color:C.text,margin:'0 0 2px'}}>{getC(o.client_id).name}</p>
+                <p style={{fontSize:11,color:C.muted,margin:0}}>{new Date(o.created_at).toLocaleString('es-AR')}</p>
+              </div>
+              <button onClick={()=>delOrder(o.id)} style={{background:'#ffeaea',border:'none',borderRadius:8,padding:'6px 10px',cursor:'pointer',color:C.red,flexShrink:0,marginLeft:8}}><ITrash/></button>
+            </div>
+          ))}
         </div>
       )}
       <p style={{fontSize:11,color:C.muted,letterSpacing:3,textTransform:'uppercase',marginBottom:8}}>Pedidos ({regular.length})</p>
       {regular.length===0&&inquiries.length===0&&<p style={{color:C.muted,textAlign:'center',padding:'40px 0',fontSize:14}}>Sin pedidos aun.</p>}
-      {regular.map(o=>{ const total=(o.items||[]).reduce((s,i)=>s+(i.price||0)*i.qty,0); return <div key={o.id} style={{...cardS,cursor:'pointer'}} onClick={()=>setSel(o.id)}><div style={{display:'flex',justifyContent:'space-between',alignItems:'center'}}><div><p style={{fontWeight:700,fontSize:14,color:C.text,margin:0}}>{getC(o.client_id).name}</p><p style={{fontSize:11,color:C.muted,margin:'3px 0 0'}}>{new Date(o.created_at).toLocaleString('es-AR')}</p></div><p style={{fontWeight:700,fontSize:16,color:C.gold,margin:0}}>{fmt(total)}</p></div></div> })}
+      {regular.map(o=>{
+        const total=(o.items||[]).reduce((s,i)=>s+(i.price||0)*i.qty,0)
+        return (
+          <div key={o.id} style={{...cardS,display:'flex',justifyContent:'space-between',alignItems:'center'}}>
+            <div style={{flex:1,cursor:'pointer'}} onClick={()=>setSel(o.id)}>
+              <p style={{fontWeight:700,fontSize:14,color:C.text,margin:0}}>{getC(o.client_id).name}</p>
+              <p style={{fontSize:11,color:C.muted,margin:'3px 0 0'}}>{new Date(o.created_at).toLocaleString('es-AR')} · {fmt(total)}</p>
+            </div>
+            <button onClick={()=>delOrder(o.id)} style={{background:'#ffeaea',border:'none',borderRadius:8,padding:'6px 10px',cursor:'pointer',color:C.red,flexShrink:0,marginLeft:8}}><ITrash/></button>
+          </div>
+        )
+      })}
     </div>
   )
 }
