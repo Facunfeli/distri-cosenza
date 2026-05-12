@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react'
 import { supabase } from './supabase.js'
 
-const DEFAULT_CATS = [
+const FALLBACK_CATS = [
   { id:'trapos',      label:'Trapos',      emoji:'🧺' },
   { id:'rejillas',    label:'Rejillas',    emoji:'🔲' },
   { id:'microfibra',  label:'Microfibra',  emoji:'✨' },
@@ -122,8 +122,18 @@ function Admin({onLogout}) {
   const [products,setProducts]=useState([]); const [clients,setClients]=useState([]); const [orders,setOrders]=useState([]); const [cats,setCats]=useState(DEFAULT_CATS)
   const [loading,setLoading]=useState(true)
   useEffect(()=>{
-    Promise.all([supabase.from('products').select('*').order('cat'),supabase.from('clients').select('*').order('name'),supabase.from('orders').select('*').order('created_at',{ascending:false}).limit(100)])
-      .then(([p,cl,o])=>{if(p.data)setProducts(p.data);if(cl.data)setClients(cl.data);if(o.data)setOrders(o.data);setLoading(false)})
+    Promise.all([
+      supabase.from('products').select('*').order('cat'),
+      supabase.from('clients').select('*').order('name'),
+      supabase.from('orders').select('*').order('created_at',{ascending:false}).limit(100),
+      supabase.from('categories').select('*').order('label'),
+    ]).then(([p,cl,o,ca])=>{
+      if(p.data) setProducts(p.data)
+      if(cl.data) setClients(cl.data)
+      if(o.data) setOrders(o.data)
+      if(ca.data && ca.data.length>0) setCats(ca.data)
+      setLoading(false)
+    })
   },[])
   if(loading) return React.createElement(Spinner,null)
   return (
@@ -154,27 +164,80 @@ function Admin({onLogout}) {
 }
 
 function AdminCats({cats,setCats,products}) {
-  const [newLabel,setNewLabel]=useState(''); const [newEmoji,setNewEmoji]=useState('📦')
-  const add=()=>{ if(!newLabel.trim()) return; const id=newLabel.trim().toLowerCase().replace(/\s+/g,'-').replace(/[^a-z0-9-]/g,''); if(cats.find(c=>c.id===id)) return; setCats(prev=>[...prev,{id,label:newLabel.trim(),emoji:newEmoji}]); setNewLabel(''); setNewEmoji('📦') }
-  const del=id=>{ if(products.some(p=>p.cat===id)){alert('Tiene productos. Cambialos primero.');return} if(window.confirm('Eliminar?')) setCats(prev=>prev.filter(c=>c.id!==id)) }
+  const [newLabel,setNewLabel]=useState('')
+  const [newEmoji,setNewEmoji]=useState('📦')
+  const [editing,setEditing]=useState(null)
+  const [saving,setSaving]=useState(false)
+  const [msg,setMsg]=useState('')
+
+  const add=async()=>{
+    if(!newLabel.trim()) return
+    const id=newLabel.trim().toLowerCase().replace(/\s+/g,'-').replace(/[^a-z0-9-]/g,'')
+    if(cats.find(c=>c.id===id)){setMsg('Ya existe una categoria con ese nombre');return}
+    setSaving(true)
+    const {data,error}=await supabase.from('categories').insert([{id,label:newLabel.trim(),emoji:newEmoji}]).select()
+    if(error){setMsg('Error: '+error.message);setSaving(false);return}
+    if(data&&data[0]) setCats(prev=>[...prev,data[0]])
+    setNewLabel(''); setNewEmoji('📦'); setSaving(false)
+  }
+
+  const saveEdit=async()=>{
+    if(!editing?.label.trim()) return
+    setSaving(true)
+    const {data,error}=await supabase.from('categories').update({label:editing.label.trim(),emoji:editing.emoji}).eq('id',editing.id).select()
+    if(error){setMsg('Error: '+error.message);setSaving(false);return}
+    if(data&&data[0]) setCats(prev=>prev.map(c=>c.id===editing.id?data[0]:c))
+    setEditing(null); setSaving(false)
+  }
+
+  const del=async id=>{
+    if(products.some(p=>p.cat===id)){alert('Tiene productos. Cambialos de categoria primero.');return}
+    if(!window.confirm('Eliminar categoria?')) return
+    await supabase.from('categories').delete().eq('id',id)
+    setCats(prev=>prev.filter(c=>c.id!==id))
+  }
+
   return (
     <div>
       <p style={{fontSize:11,color:C.muted,letterSpacing:3,textTransform:'uppercase',marginBottom:14}}>Categorias ({cats.length})</p>
-      <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:8,marginBottom:14}}>
-        {cats.map(cat=>{ const count=products.filter(p=>p.cat===cat.id).length; return (
-          <div key={cat.id} style={{...cardS,padding:12}}>
-            <div style={{display:'flex',justifyContent:'space-between',marginBottom:6}}><span style={{fontSize:24}}>{cat.emoji}</span><button style={{background:'#ffeaea',border:'none',borderRadius:6,padding:'4px 7px',cursor:'pointer',color:C.red}} onClick={()=>del(cat.id)}><ITrash/></button></div>
-            <p style={{fontWeight:700,fontSize:13,color:C.text,margin:'0 0 2px'}}>{cat.label}</p><p style={{fontSize:11,color:C.muted,margin:0}}>{count} prod.</p>
+      {msg&&<div style={{padding:'10px 14px',borderRadius:8,background:'#ffeaea',color:C.red,fontSize:13,marginBottom:10}}>{msg}</div>}
+      {cats.map(cat=>{
+        const count=products.filter(p=>p.cat===cat.id).length
+        const isEd=editing?.id===cat.id
+        return (
+          <div key={cat.id} style={{...cardS,marginBottom:8,padding:12}}>
+            {isEd?(
+              <div>
+                <div style={{display:'flex',gap:8,marginBottom:8}}>
+                  <input style={{...inp,marginBottom:0,flex:'0 0 52px',textAlign:'center',fontSize:20,padding:'8px'}} value={editing.emoji} onChange={e=>setEditing(ed=>({...ed,emoji:e.target.value}))} maxLength={2}/>
+                  <input style={{...inp,marginBottom:0,flex:1}} value={editing.label} onChange={e=>setEditing(ed=>({...ed,label:e.target.value}))} onKeyDown={e=>e.key==='Enter'&&saveEdit()}/>
+                </div>
+                <div style={{display:'flex',gap:6}}>
+                  <button style={{flex:1,padding:'8px',borderRadius:7,border:'1px solid #ddd',cursor:'pointer',fontSize:13,background:'#fff'}} onClick={()=>setEditing(null)}>Cancelar</button>
+                  <button style={{flex:1,padding:'8px',borderRadius:7,border:'none',cursor:'pointer',fontSize:13,fontWeight:600,background:C.gold,color:'#fff'}} onClick={saveEdit} disabled={saving}>Guardar</button>
+                </div>
+              </div>
+            ):(
+              <div style={{display:'flex',alignItems:'center',gap:12}}>
+                <span style={{fontSize:24,flexShrink:0}}>{cat.emoji}</span>
+                <div style={{flex:1,minWidth:0}}>
+                  <p style={{fontWeight:700,fontSize:14,color:C.text,margin:'0 0 2px'}}>{cat.label}</p>
+                  <p style={{fontSize:11,color:C.muted,margin:0}}>{count} producto{count!==1?'s':''}</p>
+                </div>
+                <button style={{padding:'6px 10px',borderRadius:7,border:'1px solid #ddd',cursor:'pointer',fontSize:12,background:'#fff',flexShrink:0}} onClick={()=>setEditing({id:cat.id,label:cat.label,emoji:cat.emoji})}>Editar</button>
+                <button style={{padding:'6px 10px',borderRadius:7,border:'none',cursor:'pointer',background:'#ffeaea',color:C.red,flexShrink:0}} onClick={()=>del(cat.id)}><ITrash/></button>
+              </div>
+            )}
           </div>
-        )})}
-      </div>
-      <div style={{...cardS,border:'1px dashed #ddd',background:'#fafafa'}}>
+        )
+      })}
+      <div style={{...cardS,border:'1px dashed #ddd',background:'#fafafa',marginTop:8}}>
         <p style={{fontSize:11,color:C.muted,letterSpacing:3,textTransform:'uppercase',marginBottom:10}}>Nueva categoria</p>
         <div style={{display:'flex',gap:8,marginBottom:10}}>
           <input style={{...inp,marginBottom:0,flex:'0 0 52px',textAlign:'center',fontSize:20,padding:'8px'}} value={newEmoji} onChange={e=>setNewEmoji(e.target.value)} maxLength={2}/>
-          <input style={{...inp,marginBottom:0,flex:1}} placeholder='Ej: Escobas...' value={newLabel} onChange={e=>setNewLabel(e.target.value)} onKeyDown={e=>e.key==='Enter'&&add()}/>
+          <input style={{...inp,marginBottom:0,flex:1}} placeholder='Ej: Baldes, Detergentes...' value={newLabel} onChange={e=>setNewLabel(e.target.value)} onKeyDown={e=>e.key==='Enter'&&add()}/>
         </div>
-        <button style={{width:'100%',padding:'11px',borderRadius:8,border:'none',cursor:'pointer',fontSize:14,fontWeight:600,background:C.gold,color:'#fff'}} onClick={add}>Agregar</button>
+        <button style={{width:'100%',padding:'11px',borderRadius:8,border:'none',cursor:'pointer',fontSize:14,fontWeight:600,background:C.gold,color:'#fff'}} onClick={add} disabled={saving}>{saving?'Guardando...':'Agregar categoria'}</button>
       </div>
     </div>
   )
@@ -419,7 +482,7 @@ function AdminOrders({orders,setOrders,clients,products}) {
 function Store({session,onLogout}) {
   const client=session.client
   const [products,setProducts]=useState([])
-  const [cats]=useState(DEFAULT_CATS)
+  const [cats,setCatsStore]=useState(FALLBACK_CATS)
   const [cart,setCart]=useState({})
   const [inquiries,setInquiries]=useState({})
   const [view,setView]=useState('home')   // home | cat | detail | cart | ok
@@ -430,8 +493,14 @@ function Store({session,onLogout}) {
   const [submitting,setSubmitting]=useState(false)
 
   useEffect(()=>{
-    supabase.from('products').select('*').eq('active',true).order('name')
-      .then(({data})=>{ if(data) setProducts(data); setLoading(false) })
+    Promise.all([
+      supabase.from('products').select('*').eq('active',true).order('name'),
+      supabase.from('categories').select('*').order('label'),
+    ]).then(([p,ca])=>{
+      if(p.data) setProducts(p.data)
+      if(ca.data&&ca.data.length>0) setCatsStore(ca.data)
+      setLoading(false)
+    })
   },[])
 
   const prices=client.prices||{}
