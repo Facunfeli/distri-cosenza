@@ -119,7 +119,7 @@ function Login({onLogin}) {
 // ── ADMIN ROOT ────────────────────────────────────────────────────────────────
 function Admin({onLogout}) {
   const [tab,setTab]=useState('products')
-  const [products,setProducts]=useState([]); const [clients,setClients]=useState([]); const [orders,setOrders]=useState([]); const [cats,setCats]=useState(DEFAULT_CATS)
+  const [products,setProducts]=useState([]); const [clients,setClients]=useState([]); const [orders,setOrders]=useState([]); const [cats,setCats]=useState(FALLBACK_CATS)
   const [loading,setLoading]=useState(true)
   useEffect(()=>{
     Promise.all([
