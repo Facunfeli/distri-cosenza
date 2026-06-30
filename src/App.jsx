@@ -328,80 +328,43 @@ function AdminClients({clients,setClients,products,cats}) {
   const blankPrices=()=>{ const p={}; products.forEach(pr=>{p[pr.id]={price:'',min_qty:1,bulk_discount:0}}); return p }
   const openNew=()=>{ setForm({name:'',username:'',password:'1234',phone:'',address:'',localidad:''}); setPrices(blankPrices()); setWspSent(false); setMsg(''); setEditId(null); setView('edit') }
   const openEdit=c=>{ setForm({name:c.name,username:c.username,password:c.password,phone:c.phone||'',address:c.address||'',localidad:c.localidad||''}); const p=blankPrices(); if(c.prices)Object.entries(c.prices).forEach(([k,v])=>{p[k]={...p[k],...v}}); setPrices(p); setWspSent(false); setMsg(''); setEditId(c.id); setView('edit') }
+
   const save = async () => {
     if (!form.name.trim() || !form.username.trim() || !form.localidad?.trim()) {
-      setMsg('Nombre, usuario y localidad son obligatorios');
-      return;
+      setMsg('Nombre, usuario y localidad son obligatorios'); return
     }
-
-    const nuevoUsername = form.username.trim().toLowerCase();
+    setSaving(true); setMsg('')
     const entry = {
       name: form.name.trim(),
-      username: nuevoUsername,
+      username: form.username.trim().toLowerCase(),
       password: form.password.trim(),
       phone: form.phone.replace(/[^0-9]/g, ''),
       address: form.address.trim(),
       localidad: form.localidad?.trim() || '',
       prices
-    };
-
-    setSaving(true);
-    setMsg('');
-
-    try {
-      // Caso 1: Se creó desde cero con el botón "+ Nuevo"
-      if (!editId) {
-        if (clients.some(c => c.username === nuevoUsername)) {
-          setMsg('Error: El usuario @' + nuevoUsername + ' ya existe.');
-          setSaving(false);
-          return;
-        }
-        const { data, error } = await supabase.from('clients').insert([entry]).select();
-        if (error) { setMsg('Error: ' + error.message); setSaving(false); return; }
-        if (data && data[0]) setClients(prev => [...prev, data[0]]);
-        setMsg('¡Guardado con éxito!');
-        setTimeout(() => setView('list'), 600);
-        return;
-      }
-
-      // Caso 2: Se entró desde "Editar" y el sistema pregunta qué hacer
-      const decidir = window.confirm(
-        "¿Cómo querés guardar los cambios de este cliente?\n\n" +
-        "• ACEPTAR: Guardar como NUEVO cliente (Copia los datos sin borrar el anterior).\n" +
-        "• CANCELAR: SOBREESCRIBIR el cliente actual."
-      );
-
-      if (decidir) {
-        // Opción Nuevo Cliente
-        if (clients.some(c => c.username === nuevoUsername)) {
-          setMsg('Error: El usuario @' + nuevoUsername + ' ya existe. Cambialo para crear el nuevo registro.');
-          setSaving(false);
-          return;
-        }
-        const { data, error } = await supabase.from('clients').insert([entry]).select();
-        if (error) { setMsg('Error: ' + error.message); setSaving(false); return; }
-        if (data && data[0]) setClients(prev => [...prev, data[0]]);
-        setMsg('¡Creado como nuevo cliente!');
-      } else {
-        // Opción Sobreescribir
-        if (clients.some(c => c.username === nuevoUsername && c.id !== editId)) {
-          setMsg('Error: El usuario @' + nuevoUsername + ' ya está tomado por otro local.');
-          setSaving(false);
-          return;
-        }
-        const { data, error } = await supabase.from('clients').update(entry).eq('id', editId).select();
-        if (error) { setMsg('Error: ' + error.message); setSaving(false); return; }
-        if (data && data[0]) setClients(prev => prev.map(c => c.id === editId ? data[0] : c));
-        setMsg('¡Datos actualizados (sobreescritos)!');
-      }
-
-      setTimeout(() => setView('list'), 600);
-    } catch (err) {
-      setMsg('Error de conexión inesperado');
-    } finally {
-      setSaving(false);
     }
+    try {
+      if (!editId) {
+        // INSERT — cliente nuevo (botón "+ Nuevo" o nombre/usuario cambiados)
+        if (clients.some(c => c.username === entry.username)) {
+          setMsg('Error: El usuario @' + entry.username + ' ya existe.'); setSaving(false); return
+        }
+        const { data, error } = await supabase.from('clients').insert([entry]).select()
+        if (error) { setMsg('Error: ' + error.message); return }
+        if (data?.[0]) setClients(prev => [...prev, data[0]])
+      } else {
+        // UPDATE — mismo cliente, nombre y usuario sin cambios
+        if (clients.some(c => c.username === entry.username && c.id !== editId)) {
+          setMsg('Error: El usuario @' + entry.username + ' ya está tomado.'); setSaving(false); return
+        }
+        const { data, error } = await supabase.from('clients').update(entry).eq('id', editId).select()
+        if (error) { setMsg('Error: ' + error.message); return }
+        if (data?.[0]) setClients(prev => prev.map(c => c.id === editId ? data[0] : c))
+      }
+      setMsg('Guardado!'); setTimeout(() => setView('list'), 600)
+    } finally { setSaving(false) }
   }
+
   const del=async id=>{ if(!window.confirm('Eliminar?')) return; await supabase.from('clients').delete().eq('id',id); setClients(prev=>prev.filter(c=>c.id!==id)) }
   const sendWsp=()=>{
     if(!form.phone) return
@@ -415,10 +378,31 @@ function AdminClients({clients,setClients,products,cats}) {
         <button onClick={()=>setView('list')} style={{background:'none',border:'none',cursor:'pointer',color:C.gold,fontSize:13,display:'flex',alignItems:'center',gap:6,marginBottom:14}}><IBack/> Volver</button>
         <p style={{fontSize:11,color:C.muted,letterSpacing:3,textTransform:'uppercase',marginBottom:14}}>{!editId?'Nuevo cliente':'Editar cliente'}</p>
         <div style={cardS}>
-          <input style={inp} placeholder="Nombre del local *" value={form.name} onChange={e=>setForm(f=>({...f,name:e.target.value}))}/>
+          {/* Nombre — al cambiar, desvincula del cliente original */}
+          <input
+            style={inp}
+            placeholder="Nombre del local *"
+            value={form.name}
+            onChange={e => {
+              const val = e.target.value
+              setForm(f => ({...f, name: val}))
+              if (editId) setEditId(null)
+            }}
+          />
           <input style={inp} placeholder="Direccion" value={form.address||''} onChange={e=>setForm(f=>({...f,address:e.target.value}))}/>
-        <input style={inp} placeholder="Localidad *" value={form.localidad||''} onChange={e=>setForm(f=>({...f,localidad:e.target.value}))}/>
-          <input style={inp} placeholder="Usuario *" value={form.username} autoCapitalize="none" autoCorrect="off" autoComplete="off" onChange={e=>setForm(f=>({...f,username:e.target.value.toLowerCase().replace(/[^a-z0-9]/g,'')}))}/>
+          <input style={inp} placeholder="Localidad *" value={form.localidad||''} onChange={e=>setForm(f=>({...f,localidad:e.target.value}))}/>
+          {/* Usuario — al cambiar, desvincula del cliente original */}
+          <input
+            style={inp}
+            placeholder="Usuario *"
+            value={form.username}
+            autoCapitalize="none" autoCorrect="off" autoComplete="off"
+            onChange={e => {
+              const val = e.target.value.toLowerCase().replace(/[^a-z0-9]/g,'')
+              setForm(f => ({...f, username: val}))
+              if (editId) setEditId(null)
+            }}
+          />
           <input style={inp} placeholder="Contrasena" value={form.password} autoComplete="off" onChange={e=>setForm(f=>({...f,password:e.target.value}))}/>
           <input style={{...inp,marginBottom:form.phone?10:0}} placeholder="WhatsApp (5491165001234)" type="tel" value={form.phone||''} onChange={e=>setForm(f=>({...f,phone:e.target.value}))}/>
           {form.phone&&<button onClick={sendWsp} style={{width:'100%',padding:'11px',borderRadius:8,border:'none',cursor:'pointer',fontSize:14,fontWeight:600,background:'#25D366',color:'#fff',display:'flex',alignItems:'center',justifyContent:'center',gap:8,marginBottom:0}}><IWsp/> {wspSent?'Acceso enviado!':'Enviar acceso por WhatsApp'}</button>}
@@ -587,11 +571,9 @@ function Store({session,onLogout}) {
     await supabase.from('orders').insert([{client_id:client.id,items:isInquiry?inquiryItems:cartItems,total:isInquiry?0:cartTotal,status:isInquiry?'inquiry':'pending'}])
     if(isInquiry){
       setInquiries({})
-      // WhatsApp para consulta
       const msg = `Hola! Soy la tienda Distri Cosenza. ${client.name} de ${client.localidad||''} realizo una consulta de precios desde la web.`
       window.open('https://wa.me/'+WSP_NUMBERS[0]+'?text='+encodeURIComponent(msg),'_blank')
     } else {
-      // Armar resumen del pedido
       const lines = cartItems.map(item=>{
         const pr = products.find(p=>p.id===item.product_id)
         return (pr?.name||'Producto')+': '+item.qty+' '+(pr?.unit||'doc')+' x '+fmt(item.price)+' = '+fmt(item.price*item.qty)
@@ -606,9 +588,7 @@ ${lines.join('\n')}
 
 Total: ${fmt(cartTotal)}`
       setCart({})
-      // Abrir WhatsApp al primero, el segundo lo manejamos aparte
       window.open('https://wa.me/'+WSP_NUMBERS[0]+'?text='+encodeURIComponent(msg),'_blank')
-      // Pequeño delay para abrir el segundo
       setTimeout(()=>{ window.open('https://wa.me/'+WSP_NUMBERS[1]+'?text='+encodeURIComponent(msg),'_blank') }, 1500)
     }
     setSubmitting(false); setView('ok')
@@ -674,7 +654,6 @@ Total: ${fmt(cartTotal)}`
         {gallery&&React.createElement(Gallery,{photos:gallery.photos,name:gallery.name,onClose:()=>setGallery(null)})}
         <TopBar title={pr.name} sub={catInfo.label} onBack={()=>setView('cat')} cartCount={cartCount} onCart={()=>setView('cart')}/>
 
-        {/* Fotos */}
         <div style={{background:'#fff',padding:16}}>
           <div style={{borderRadius:12,overflow:'hidden',background:'#f8f8f8',display:'flex',alignItems:'center',justifyContent:'center',height:240,cursor:photos.length>0?'pointer':'default',border:'1px solid #eee'}} onClick={()=>photos.length>0&&setGallery({photos,name:pr.name})}>
             {photos.length>0?<img src={photos[0]} alt={pr.name} style={{maxWidth:'100%',maxHeight:'100%',objectFit:'contain'}}/>:<span style={{fontSize:56}}>{catInfo.emoji}</span>}
@@ -697,7 +676,6 @@ Total: ${fmt(cartTotal)}`
 
           {hasPrice?(
             <div>
-              {/* Precios */}
               <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10,marginBottom:12}}>
                 <div style={{background:'#fff',borderRadius:12,padding:'12px 14px',border:'1px solid '+C.border,textAlign:'center'}}>
                   <p style={{fontSize:11,color:C.muted,margin:'0 0 4px'}}>Por {pr.unit}</p>
@@ -709,13 +687,11 @@ Total: ${fmt(cartTotal)}`
                 </div>
               </div>
 
-              {/* Minimo */}
               <div style={{background:'#fff8ee',border:'1px solid #f5d98a',borderRadius:10,padding:'10px 14px',marginBottom:10,display:'flex',alignItems:'center',gap:8}}>
                 <span style={{fontSize:18}}>📦</span>
                 <span style={{fontSize:14,fontWeight:700,color:'#a07830'}}>Mínimo: {Number(pdata.min_qty)||1} {pr.unit} = {(Number(pdata.min_qty)||1)*qpu} unidades</span>
               </div>
 
-              {/* Descuento bulto */}
               {bulkPrice>0&&(
                 <div style={{background:'#eaffea',border:'1px solid #b2f0c8',borderRadius:10,padding:'10px 14px',marginBottom:10,display:'flex',justifyContent:'space-between',alignItems:'center'}}>
                   <div><p style={{fontSize:11,color:C.muted,margin:'0 0 2px'}}>Bulto (10 docenas)</p><p style={{fontSize:16,fontWeight:700,color:'#1a8a3a',margin:0}}>{fmt(bulkPrice)}/doc · {fmt(Math.round(bulkPrice/qpu))}/u</p></div>
@@ -723,7 +699,6 @@ Total: ${fmt(cartTotal)}`
                 </div>
               )}
 
-              {/* Selector cantidad */}
               <div style={{background:'#fff',borderRadius:12,border:'1px solid '+C.border,padding:'14px 16px',marginTop:6}}>
                 <p style={{fontSize:13,color:C.muted,margin:'0 0 10px',fontWeight:600}}>Cantidad de docenas</p>
                 <div style={{display:'flex',alignItems:'center',justifyContent:'space-between'}}>
@@ -753,7 +728,6 @@ Total: ${fmt(cartTotal)}`
           )}
         </div>
 
-        {/* Footer fijo */}
         {(cartCount>0||inquiryCount>0)&&(
           <div style={{position:'fixed',bottom:0,left:0,right:0,maxWidth:600,margin:'0 auto',padding:'12px 16px',background:'#fff',borderTop:'1px solid '+C.border,display:'flex',flexDirection:'column',gap:8,boxShadow:'0 -2px 10px rgba(0,0,0,0.08)'}}>
             {cartCount>0&&<button style={{width:'100%',padding:'13px',borderRadius:10,border:'none',cursor:'pointer',fontSize:15,fontWeight:700,background:C.gold,color:'#fff'}} onClick={()=>setView('cart')}>Ver carrito ({cartCount}) · {fmt(cartTotal)}</button>}
@@ -778,11 +752,9 @@ Total: ${fmt(cartTotal)}`
             const qty=cart[pr.id]||0
             return (
               <div key={pr.id} style={{background:'#fff',borderRadius:12,border:'1px solid '+C.border,overflow:'hidden',cursor:'pointer',boxShadow:'0 1px 4px rgba(0,0,0,0.06)'}} onClick={()=>{ setSelProd(pr); setView('detail') }}>
-                {/* Foto cuadrada */}
                 <div style={{background:'#f8f8f8',aspectRatio:'1',display:'flex',alignItems:'center',justifyContent:'center',overflow:'hidden'}}>
                   {pr.photo?<img src={pr.photo} alt={pr.name} style={{width:'100%',height:'100%',objectFit:'contain'}}/>:<span style={{fontSize:36}}>{catInfo.emoji}</span>}
                 </div>
-                {/* Info */}
                 <div style={{padding:'10px 10px 12px'}}>
                   <p style={{fontWeight:600,fontSize:13,color:C.text,margin:'0 0 4px',lineHeight:1.3,overflow:'hidden',display:'-webkit-box',WebkitLineClamp:2,WebkitBoxOrient:'vertical'}}>{pr.name}</p>
                   {hasPrice?(
