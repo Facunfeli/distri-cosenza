@@ -328,15 +328,79 @@ function AdminClients({clients,setClients,products,cats}) {
   const blankPrices=()=>{ const p={}; products.forEach(pr=>{p[pr.id]={price:'',min_qty:1,bulk_discount:0}}); return p }
   const openNew=()=>{ setForm({name:'',username:'',password:'1234',phone:'',address:'',localidad:''}); setPrices(blankPrices()); setWspSent(false); setMsg(''); setEditId(null); setView('edit') }
   const openEdit=c=>{ setForm({name:c.name,username:c.username,password:c.password,phone:c.phone||'',address:c.address||'',localidad:c.localidad||''}); const p=blankPrices(); if(c.prices)Object.entries(c.prices).forEach(([k,v])=>{p[k]={...p[k],...v}}); setPrices(p); setWspSent(false); setMsg(''); setEditId(c.id); setView('edit') }
-  const save=async()=>{
-    if(!form.name.trim()||!form.username.trim()||!form.localidad?.trim()){setMsg('Nombre, usuario y localidad son obligatorios');return}
-    setSaving(true); setMsg('')
-    const entry={name:form.name.trim(),username:form.username.trim().toLowerCase(),password:form.password.trim(),phone:form.phone.replace(/[^0-9]/g,''),address:form.address.trim(),localidad:form.localidad?.trim()||'',prices}
+  const save = async () => {
+    if (!form.name.trim() || !form.username.trim() || !form.localidad?.trim()) {
+      setMsg('Nombre, usuario y localidad son obligatorios');
+      return;
+    }
+
+    const nuevoUsername = form.username.trim().toLowerCase();
+    const entry = {
+      name: form.name.trim(),
+      username: nuevoUsername,
+      password: form.password.trim(),
+      phone: form.phone.replace(/[^0-9]/g, ''),
+      address: form.address.trim(),
+      localidad: form.localidad?.trim() || '',
+      prices
+    };
+
+    setSaving(true);
+    setMsg('');
+
     try {
-      if(!editId){const {data,error}=await supabase.from('clients').insert([entry]).select();if(error){setMsg('Error: '+error.message);return};if(data&&data[0])setClients(prev=>[...prev,data[0]])}
-      else{const {data,error}=await supabase.from('clients').update(entry).eq('id',editId).select();if(error){setMsg('Error: '+error.message);return};if(data&&data[0])setClients(prev=>prev.map(c=>c.id===editId?data[0]:c))}
-      setMsg('Guardado!'); setTimeout(()=>setView('list'),600)
-    } finally{setSaving(false)}
+      // Caso 1: Se creó desde cero con el botón "+ Nuevo"
+      if (!editId) {
+        if (clients.some(c => c.username === nuevoUsername)) {
+          setMsg('Error: El usuario @' + nuevoUsername + ' ya existe.');
+          setSaving(false);
+          return;
+        }
+        const { data, error } = await supabase.from('clients').insert([entry]).select();
+        if (error) { setMsg('Error: ' + error.message); setSaving(false); return; }
+        if (data && data[0]) setClients(prev => [...prev, data[0]]);
+        setMsg('¡Guardado con éxito!');
+        setTimeout(() => setView('list'), 600);
+        return;
+      }
+
+      // Caso 2: Se entró desde "Editar" y el sistema pregunta qué hacer
+      const decidir = window.confirm(
+        "¿Cómo querés guardar los cambios de este cliente?\n\n" +
+        "• ACEPTAR: Guardar como NUEVO cliente (Copia los datos sin borrar el anterior).\n" +
+        "• CANCELAR: SOBREESCRIBIR el cliente actual."
+      );
+
+      if (decidir) {
+        // Opción Nuevo Cliente
+        if (clients.some(c => c.username === nuevoUsername)) {
+          setMsg('Error: El usuario @' + nuevoUsername + ' ya existe. Cambialo para crear el nuevo registro.');
+          setSaving(false);
+          return;
+        }
+        const { data, error } = await supabase.from('clients').insert([entry]).select();
+        if (error) { setMsg('Error: ' + error.message); setSaving(false); return; }
+        if (data && data[0]) setClients(prev => [...prev, data[0]]);
+        setMsg('¡Creado como nuevo cliente!');
+      } else {
+        // Opción Sobreescribir
+        if (clients.some(c => c.username === nuevoUsername && c.id !== editId)) {
+          setMsg('Error: El usuario @' + nuevoUsername + ' ya está tomado por otro local.');
+          setSaving(false);
+          return;
+        }
+        const { data, error } = await supabase.from('clients').update(entry).eq('id', editId).select();
+        if (error) { setMsg('Error: ' + error.message); setSaving(false); return; }
+        if (data && data[0]) setClients(prev => prev.map(c => c.id === editId ? data[0] : c));
+        setMsg('¡Datos actualizados (sobreescritos)!');
+      }
+
+      setTimeout(() => setView('list'), 600);
+    } catch (err) {
+      setMsg('Error de conexión inesperado');
+    } finally {
+      setSaving(false);
+    }
   }
   const del=async id=>{ if(!window.confirm('Eliminar?')) return; await supabase.from('clients').delete().eq('id',id); setClients(prev=>prev.filter(c=>c.id!==id)) }
   const sendWsp=()=>{
